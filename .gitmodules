@@ -1,0 +1,27 @@
+[submodule "services/krya"]
+	path = services/krya
+	url = https://github.com/AlxM1/Krea-11labs-AdaResigration.git
+	branch = claude/krea-ai-clone-DJQQv
+[submodule "services/voiceforge"]
+	path = services/voiceforge
+	url = https://github.com/AlxM1/Krea-11labs-AdaResigration.git
+	branch = claude/elevenlabs-research-4Me4R
+[submodule "services/newsletter"]
+	path = services/newsletter
+	url = https://github.com/AlxM1/NewsPodcast-adapools-xspo-alliance.git
+	branch = claude/newsletter-video-automation-DhbtP
+[submodule "services/agentsmith"]
+	path = services/agentsmith
+	url = https://github.com/AlxM1/AgentSmith.git
+[submodule "services/youtubedl"]
+	path = services/youtubedl
+	url = https://github.com/AlxM1/youtubedl.git
+[submodule "services/whisperflow"]
+	path = services/whisperflow
+	url = https://github.com/AlxM1/whisperflow.git
+[submodule "services/notion"]
+	path = services/notion
+	url = https://github.com/AlxM1/Notion.git
+[submodule "services/apify"]
+	path = services/apify
+	url = https://github.com/AlxM1/apify.git

@@ -292,6 +292,9 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "1"
+      # App URLs
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://krya.00raiser.space}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://krya.00raiser.space}
       # AI providers
       FAL_KEY: ${FAL_KEY:-}
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
@@ -320,8 +323,6 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
-      # App
-      NEXT_PUBLIC_APP_URL: http://localhost:3100
     ports:
       - "3100:3000"
     volumes:

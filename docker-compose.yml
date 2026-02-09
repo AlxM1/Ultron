@@ -1,0 +1,562 @@
+# =============================================================================
+# 00raiser — Consolidated Docker Compose
+# =============================================================================
+# All services on a single shared PostgreSQL + Redis backbone.
+#
+# Quick start:
+#   1. cp .env.example .env && $EDITOR .env  (fill in secrets)
+#   2. docker compose up -d postgres redis
+#   3. docker compose up -d                  (everything else)
+#
+# Port map (host):
+#   5432  PostgreSQL          9000/9443  Authentik
+#   6379  Redis               4000  AgentSmith API
+#   3000  AgentSmith UI       3001  AgentSmith Admin
+#   3100  Krya                8100  VoiceForge
+#   8200  YouTubeDL           8766  WhisperFlow
+#   8300  Newsletter Pipeline 8400  Portal
+# =============================================================================
+
+services:
+
+  # ===========================================================================
+  # CORE INFRASTRUCTURE
+  # ===========================================================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: raiser-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      # Per-service passwords passed to init-databases.sh
+      AUTHENTIK_DB_PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+      AGENTSMITH_DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
+      KRYA_DB_PASSWORD: ${KRYA_DB_PASSWORD}
+      VOICEFORGE_DB_PASSWORD: ${VOICEFORGE_DB_PASSWORD}
+      YOUTUBEDL_DB_PASSWORD: ${YOUTUBEDL_DB_PASSWORD}
+      NVP_DB_PASSWORD: ${NVP_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - raiser-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: raiser-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy volatile-lru
+      --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # AUTHENTIK — SSO / Identity Provider
+  # ===========================================================================
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.12
+    container_name: raiser-authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?Set AUTHENTIK_SECRET_KEY in .env}
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_REDIS__PASSWORD: ${REDIS_PASSWORD}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-}
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.12
+    container_name: raiser-authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_REDIS__PASSWORD: ${REDIS_PASSWORD}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+      - authentik_certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # AGENTSMITH — Automation Platform
+  # ===========================================================================
+  # Build context: services/agentsmith (npm workspaces monorepo)
+  # Dockerfiles verified at: docker/Dockerfile.{backend,frontend,admin,worker}
+
+  agentsmith-backend:
+    build:
+      context: ./services/agentsmith
+      dockerfile: docker/Dockerfile.backend
+    container_name: raiser-agentsmith-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Database (verified from docker-compose.production.yml)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: agentsmith
+      DB_USERNAME: agentsmith
+      DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Security (verified from .env.example)
+      JWT_SECRET: ${AGENTSMITH_JWT_SECRET}
+      JWT_REFRESH_SECRET: ${AGENTSMITH_JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${AGENTSMITH_ENCRYPTION_KEY}
+      SESSION_SECRET: ${AGENTSMITH_SESSION_SECRET}
+      # URLs
+      APP_URL: ${AGENTSMITH_APP_URL:-http://localhost:3000}
+      API_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}
+      WEBHOOK_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}/webhooks
+      CORS_ORIGIN: ${AGENTSMITH_CORS_ORIGIN:-http://localhost:3000,http://localhost:3001}
+      # SSO (optional)
+      SSO_ENABLED: ${AGENTSMITH_SSO_ENABLED:-false}
+      GOOGLE_CLIENT_ID: ${AGENTSMITH_GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${AGENTSMITH_GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${AGENTSMITH_GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${AGENTSMITH_GITHUB_CLIENT_SECRET:-}
+      # Email (optional)
+      SMTP_ENABLED: ${AGENTSMITH_SMTP_ENABLED:-false}
+      SMTP_HOST: ${AGENTSMITH_SMTP_HOST:-}
+      SMTP_PORT: ${AGENTSMITH_SMTP_PORT:-587}
+      SMTP_USER: ${AGENTSMITH_SMTP_USER:-}
+      SMTP_PASS: ${AGENTSMITH_SMTP_PASSWORD:-}
+      SMTP_FROM: ${AGENTSMITH_SMTP_FROM:-noreply@agentsmith.local}
+      # AI (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      # Logging
+      LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  agentsmith-worker:
+    build:
+      context: ./services/agentsmith
+      dockerfile: docker/Dockerfile.worker
+    container_name: raiser-agentsmith-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: agentsmith
+      DB_USERNAME: agentsmith
+      DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Security
+      ENCRYPTION_KEY: ${AGENTSMITH_ENCRYPTION_KEY}
+      # Worker (verified from docker-compose.production.yml)
+      WORKER_CONCURRENCY: ${AGENTSMITH_WORKER_CONCURRENCY:-5}
+      EXECUTION_TIMEOUT: 3600000
+      LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      agentsmith-backend:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  agentsmith-frontend:
+    build:
+      context: ./services/agentsmith
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}
+        VITE_WS_URL: ws://localhost:4000/ws
+    container_name: raiser-agentsmith-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      agentsmith-backend:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  agentsmith-admin:
+    build:
+      context: ./services/agentsmith
+      dockerfile: docker/Dockerfile.admin
+      args:
+        VITE_API_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}
+    container_name: raiser-agentsmith-admin
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      agentsmith-backend:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # KRYA — AI Creative Platform (Next.js + Prisma)
+  # ===========================================================================
+  # Build context: services/krya — Dockerfile at apps/web/Dockerfile
+  # Remapped to host port 3100 (container still listens on 3000)
+
+  krya:
+    build:
+      context: ./services/krya
+      dockerfile: apps/web/Dockerfile
+    container_name: raiser-krya
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Database
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: krya
+      DB_PASSWORD: ${KRYA_DB_PASSWORD}
+      DB_NAME: krya
+      # Redis (DB 1 — isolated from other services)
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: "1"
+      # AI providers
+      FAL_KEY: ${FAL_KEY:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+      OPENAI_API_KEY: ${KRYA_OPENAI_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${KRYA_GOOGLE_AI_API_KEY:-}
+      GOOGLE_IMAGE_MODEL: ${GOOGLE_IMAGE_MODEL:-imagen-4.0-generate-preview-05-20}
+      GOOGLE_VIDEO_MODEL: ${GOOGLE_VIDEO_MODEL:-veo-3.0-generate-preview}
+      # Local AI / GPU Server (optional)
+      GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
+      GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
+      COMFYUI_HOST: ${COMFYUI_HOST:-}
+      COMFYUI_PORT: ${COMFYUI_PORT:-8189}
+      COMFYUI_URL: ${COMFYUI_URL:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      OLLAMA_URL: ${OLLAMA_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+      # Storage (local filesystem)
+      UPLOAD_DIR: /app/uploads
+      # Payments (optional)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+      # App
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+    ports:
+      - "3100:3000"
+    volumes:
+      - /mnt/data/00raiser/media/krya:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # VOICEFORGE — Voice & Avatar Platform (FastAPI + CUDA)
+  # ===========================================================================
+  # Build context: services/voiceforge/voiceforge
+  # Dockerfile at: docker/Dockerfile.backend (nvidia/cuda:12.1 base)
+  # Set VOICEFORGE_DEVICE=cuda and add deploy.resources for GPU usage
+
+  voiceforge:
+    build:
+      context: ./services/voiceforge/voiceforge
+      dockerfile: docker/Dockerfile.backend
+    container_name: raiser-voiceforge
+    restart: unless-stopped
+    environment:
+      # Verified from .env.example and docker-compose.yml
+      APP_NAME: voiceforge
+      DEBUG: "false"
+      SECRET_KEY: ${VOICEFORGE_SECRET_KEY}
+      HOST: 0.0.0.0
+      PORT: 8000
+      # Database (asyncpg — matches voiceforge docker-compose)
+      DATABASE_URL: postgresql+asyncpg://voiceforge:${VOICEFORGE_DB_PASSWORD}@postgres:5432/voiceforge
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: 2
+      # Storage
+      STORAGE_TYPE: local
+      STORAGE_PATH: /app/storage
+      # Device — set to 'cuda' if GPU available
+      DEVICE: ${VOICEFORGE_DEVICE:-cpu}
+      # GPU Server (optional)
+      GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
+      GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+      # CORS
+      CORS_ORIGINS: '["http://localhost:8100"]'
+    ports:
+      - "8100:8000"
+    volumes:
+      - voiceforge_storage:/app/storage
+      - voiceforge_models:/home/voiceforge/.cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # YOUTUBEDL — Video Downloader (Python, migrated to PostgreSQL)
+  # ===========================================================================
+  # Build context: services/youtubedl — Dockerfile at root
+  # DATABASE_URL switched from sqlite to postgresql+asyncpg per plan
+
+  youtubedl:
+    build:
+      context: ./services/youtubedl
+      dockerfile: Dockerfile
+    container_name: raiser-youtubedl
+    restart: unless-stopped
+    environment:
+      # Verified from config.py
+      HOST: 0.0.0.0
+      PORT: 8000
+      DOWNLOAD_DIR: /app/downloads
+      # Migrated from SQLite -> PostgreSQL (asyncpg driver as requested)
+      DATABASE_URL: postgresql+asyncpg://youtubedl:${YOUTUBEDL_DB_PASSWORD}@postgres:5432/youtubedl
+      MAX_CONCURRENT_DOWNLOADS: ${YOUTUBEDL_MAX_CONCURRENT:-3}
+      EXTRACT_RATE_LIMIT: ${YOUTUBEDL_EXTRACT_RATE_LIMIT:-10}
+      MIN_FREE_DISK_MB: ${YOUTUBEDL_MIN_FREE_DISK_MB:-500}
+      API_KEY: ${YOUTUBEDL_API_KEY:-}
+    ports:
+      - "8200:8000"
+    volumes:
+      - youtubedl_downloads:/app/downloads
+      - youtubedl_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # WHISPERFLOW — Transcription Service (Python)
+  # ===========================================================================
+  # Build context: services/whisperflow — Dockerfile at root
+  # Configured to use Windows PC GPU server for transcription
+
+  whisperflow:
+    build:
+      context: ./services/whisperflow
+      dockerfile: Dockerfile
+    container_name: raiser-whisperflow
+    restart: unless-stopped
+    environment:
+      # Verified from deploy/docker-compose.yml and config.py
+      WHISPERFLOW_API_KEY: ${WHISPERFLOW_API_KEY:-}
+      WHISPERFLOW_DATA_DIR: /data
+      WHISPERFLOW_PROXY_HEADERS: "1"
+      WHISPERFLOW_ALLOWED_ORIGINS: ${WHISPERFLOW_ALLOWED_ORIGINS:-}
+      # Point to Windows PC GPU server for faster-whisper
+      WHISPERFLOW_REMOTE_HOST: ${WINDOWS_PC_IP:-192.168.1.100}
+      WHISPERFLOW_REMOTE_PORT: "8765"
+      # GPU Server (optional)
+      GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+    ports:
+      - "8766:8766"
+    volumes:
+      - whisperflow_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # NEWSLETTER PIPELINE — Video Newsletter API Gateway (Python FastAPI)
+  # ===========================================================================
+  # Build context: services/newsletter/newsletter-video-pipeline
+  # This is the api-gateway entry point for the pipeline.
+  # Remaining newsletter microservices can be started from the service's own
+  # docker-compose.yml if the full pipeline is needed.
+
+  newsletter-pipeline:
+    build:
+      context: ./services/newsletter/newsletter-video-pipeline
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: raiser-newsletter-pipeline
+    restart: unless-stopped
+    environment:
+      # Verified from .env.example and docker-compose.yml
+      ENVIRONMENT: production
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_KEY: ${NVP_API_KEY}
+      SECRET_KEY: ${NVP_SECRET_KEY}
+      LOG_LEVEL: INFO
+      # Database (asyncpg — verified from docker-compose)
+      DATABASE_URL: postgresql+asyncpg://nvp:${NVP_DB_PASSWORD}@postgres:5432/newsletter_pipeline
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
+      # GPU server on Windows PC
+      GPU_HOST: ${WINDOWS_PC_IP:-192.168.1.100}
+      VOICE_CLONER_URL: http://${WINDOWS_PC_IP:-192.168.1.100}:${NVP_GPU_VOICE_PORT:-5002}
+      AVATAR_GENERATOR_URL: http://${WINDOWS_PC_IP:-192.168.1.100}:${NVP_GPU_AVATAR_PORT:-5003}
+      # LLM / GPU Server
+      LLM_PROVIDER: ${NVP_LLM_PROVIDER:-local}
+      LLM_MODEL: ${NVP_LLM_MODEL:-qwen2.5:7b}
+      GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
+      GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
+      COMFYUI_HOST: ${COMFYUI_HOST:-}
+      COMFYUI_PORT: ${COMFYUI_PORT:-8189}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+    ports:
+      - "8300:8000"
+    volumes:
+      - nvp_data:/app/data
+      - nvp_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # PORTAL — Unified Dashboard (placeholder)
+  # ===========================================================================
+  # Build context: portal/ — Dockerfile needs to be created.
+  # Uncomment once a Dockerfile exists in the portal directory.
+
+  # portal:
+  #   build:
+  #     context: ./portal
+  #     dockerfile: Dockerfile
+  #   container_name: raiser-portal
+  #   restart: unless-stopped
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 3000
+  #   ports:
+  #     - "8400:3000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - raiser-net
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  # Core
+  postgres_data:
+  redis_data:
+  # Authentik
+  authentik_media:
+  authentik_templates:
+  authentik_certs:
+  # VoiceForge
+  voiceforge_storage:
+  voiceforge_models:
+  # YouTubeDL
+  youtubedl_downloads:
+  youtubedl_data:
+  # WhisperFlow
+  whisperflow_data:
+  # Newsletter
+  nvp_data:
+  nvp_logs:
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  raiser-net:
+    driver: bridge

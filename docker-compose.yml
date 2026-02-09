@@ -286,6 +286,7 @@ services:
       DB_USER: krya
       DB_PASSWORD: ${KRYA_DB_PASSWORD}
       DB_NAME: krya
+      DATABASE_URL: postgresql://krya:${KRYA_DB_PASSWORD}@postgres:5432/krya
       # Redis (DB 1 — isolated from other services)
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -299,6 +300,10 @@ services:
       GOOGLE_AI_API_KEY: ${KRYA_GOOGLE_AI_API_KEY:-}
       GOOGLE_IMAGE_MODEL: ${GOOGLE_IMAGE_MODEL:-imagen-4.0-generate-preview-05-20}
       GOOGLE_VIDEO_MODEL: ${GOOGLE_VIDEO_MODEL:-veo-3.0-generate-preview}
+      # NVIDIA NIM (Primary AI Provider)
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      # Hugging Face
+      HF_TOKEN: ${HF_TOKEN:-}
       # Local AI / GPU Server (optional)
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
@@ -365,6 +370,9 @@ services:
       GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+      # NVIDIA NIM & Hugging Face
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
       # CORS
       CORS_ORIGINS: '["http://localhost:8100"]'
     ports:
@@ -441,6 +449,9 @@ services:
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+      # NVIDIA NIM & Hugging Face
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
     ports:
       - "8766:8766"
     volumes:
@@ -493,6 +504,9 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
+      # NVIDIA NIM & Hugging Face
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
     ports:
       - "8300:8000"
     volumes:

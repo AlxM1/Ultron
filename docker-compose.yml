@@ -14,7 +14,7 @@
 #   3000  AgentSmith UI       3001  AgentSmith Admin
 #   3100  Krya                8100  VoiceForge
 #   8200  YouTubeDL           8766  WhisperFlow
-#   8300  Newsletter Pipeline 8400  Portal
+#   8300  Newsletter Pipeline 8400  Apify Scraper
 # =============================================================================
 
 services:
@@ -37,6 +37,7 @@ services:
       VOICEFORGE_DB_PASSWORD: ${VOICEFORGE_DB_PASSWORD}
       YOUTUBEDL_DB_PASSWORD: ${YOUTUBEDL_DB_PASSWORD}
       NVP_DB_PASSWORD: ${NVP_DB_PASSWORD}
+      SCRAPER_DB_PASSWORD: ${SCRAPER_DB_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -59,7 +60,7 @@ services:
       redis-server
       --appendonly yes
       --maxmemory 1gb
-      --maxmemory-policy volatile-lru
+      --maxmemory-policy noeviction
       --requirepass ${REDIS_PASSWORD}
     ports:
       - "127.0.0.1:6379:6379"
@@ -327,6 +328,57 @@ services:
       - "3100:3000"
     volumes:
       - /mnt/data/00raiser/media/krya:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # APIFY SCRAPER — Multi-Platform Web Scraping Service
+  # ===========================================================================
+  # Build context: services/apify (Next.js + Crawlee + Playwright)
+  # Supports YouTube, Reddit, Instagram, TikTok, Twitter, Google Maps, etc.
+
+  apify:
+    build:
+      context: ./services/apify
+      dockerfile: Dockerfile
+    container_name: raiser-apify
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8400
+      # Database
+      DATABASE_URL: postgresql://scraper:${SCRAPER_DB_PASSWORD}@postgres:5432/scraper
+      # Redis (DB 2 — isolated from other services)
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: "2"
+      # Storage
+      UPLOAD_DIR: /app/uploads
+      MEDIA_PATH: /app/uploads
+      # Proxies (optional)
+      WEBSHARE_API_KEY: ${WEBSHARE_API_KEY:-}
+      SCRAPERAPI_KEY: ${SCRAPERAPI_KEY:-}
+      SCRAPINGBEE_KEY: ${SCRAPINGBEE_KEY:-}
+      # Platform APIs (optional)
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      # Instagram (required for Instagram scraping via instagrapi)
+      INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME:-}
+      INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD:-}
+      INSTAGRAM_PROXY: ${INSTAGRAM_PROXY:-}
+    ports:
+      - "8400:8400"
+    volumes:
+      - /mnt/data/00raiser/media/apify:/app/uploads
+      - /mnt/data/00raiser/media/scraper:/mnt/data/00raiser/media/scraper
     depends_on:
       postgres:
         condition: service_healthy

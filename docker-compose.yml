@@ -17,6 +17,7 @@
 #   8200  YouTubeDL           8766  WhisperFlow
 #   3020  Portal (00raiser OS) 8300  Newsletter Pipeline
 #   8400  Apify Scraper       8500  Persona Pipeline
+#   3015  Content Intel
 # =============================================================================
 
 services:
@@ -42,6 +43,7 @@ services:
       SCRAPER_DB_PASSWORD: ${SCRAPER_DB_PASSWORD}
       AFFINE_DB_PASSWORD: ${AFFINE_DB_PASSWORD}
       CORTEX_DB_PASSWORD: ${CORTEX_DB_PASSWORD}
+      CONTENT_INTEL_DB_PASSWORD: ${CONTENT_INTEL_DB_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -748,6 +750,34 @@ services:
     depends_on:
       cortex:
         condition: service_started
+    networks:
+      - raiser-net
+
+  # ===========================================================================
+  # CONTENT INTEL — Content Intelligence Scraper
+  # ===========================================================================
+  # Continuous monitoring and analysis of top content creators.
+  # Tracks YouTube channels and Twitter profiles, extracts trends,
+  # identifies content gaps, and generates scored content ideas.
+
+  content-intel:
+    build:
+      context: ./services/content-intel
+      dockerfile: Dockerfile
+    container_name: raiser-content-intel
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3015"
+      DATABASE_URL: postgresql://content_intel:${CONTENT_INTEL_DB_PASSWORD}@postgres:5432/content_intel
+      CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
+      APIFY_SCRAPER_URL: http://raiser-apify:8400
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+    ports:
+      - "127.0.0.1:3015:3015"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - raiser-net
 

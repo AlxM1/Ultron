@@ -1,0 +1,36 @@
+{
+  "youtube": [
+    { "handle": "mreflow", "name": "Matt Wolfe" },
+    { "handle": "aiexplained-official", "name": "AI Explained" },
+    { "handle": "Fireship", "name": "Fireship" },
+    { "handle": "NetworkChuck", "name": "NetworkChuck" },
+    { "handle": "davidondrej", "name": "David Ondrej" },
+    { "handle": "mattshumer_", "name": "Matt Shumer" },
+    { "handle": "AIJasonZ", "name": "AI Jason" },
+    { "handle": "ColeMedin", "name": "Cole Medin" },
+    { "handle": "indydevdan", "name": "IndyDevDan" },
+    { "handle": "AllAboutAI", "name": "All About AI" },
+    { "handle": "NeilPatel", "name": "Neil Patel" },
+    { "handle": "AhrefsCom", "name": "Ahrefs" },
+    { "handle": "HubSpot", "name": "HubSpot" },
+    { "handle": "AlexHormozi", "name": "Alex Hormozi" },
+    { "handle": "WesMcDowellInc", "name": "Wes McDowell" },
+    { "handle": "AdamEnfroy", "name": "Adam Enfroy" },
+    { "handle": "MilesBeckler", "name": "Miles Beckler" },
+    { "handle": "incomeSchoolMedia", "name": "Income School" },
+    { "handle": "AuthorityHacker", "name": "Authority Hacker" },
+    { "handle": "jessecunningham", "name": "Jesse Cunningham" }
+  ],
+  "twitter": [
+    { "handle": "OpenAI", "name": "OpenAI" },
+    { "handle": "AnthropicAI", "name": "Anthropic" },
+    { "handle": "svpino", "name": "Santiago Valdarrama" },
+    { "handle": "emollick", "name": "Ethan Mollick" },
+    { "handle": "mckaywrigley", "name": "Mckay Wrigley" },
+    { "handle": "altryne", "name": "Alex Volkov" },
+    { "handle": "randfish", "name": "Rand Fishkin" },
+    { "handle": "searchliaison", "name": "Google Search Liaison" },
+    { "handle": "hwchase17", "name": "Harrison Chase" },
+    { "handle": "ylecun", "name": "Yann LeCun" }
+  ]
+}

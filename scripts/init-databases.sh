@@ -98,4 +98,9 @@ create_db_and_user \
     "agent_bridge" \
     "${CORTEX_DB_PASSWORD:?CORTEX_DB_PASSWORD is required}"
 
+create_db_and_user \
+    "content_intel" \
+    "content_intel" \
+    "${CONTENT_INTEL_DB_PASSWORD:?CONTENT_INTEL_DB_PASSWORD is required}"
+
 log "All databases initialised successfully."

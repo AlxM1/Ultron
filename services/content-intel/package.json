@@ -1,0 +1,21 @@
+{
+  "name": "content-intel",
+  "version": "1.0.0",
+  "description": "Content Intelligence Scraper for 00raiser - continuous monitoring and analysis of top content creators",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["content", "intelligence", "scraper", "youtube", "twitter", "trends", "00raiser"],
+  "author": "00raiser",
+  "license": "MIT",
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1",
+    "cheerio": "^1.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}

@@ -83,4 +83,19 @@ create_db_and_user \
     "nvp" \
     "${NVP_DB_PASSWORD:?NVP_DB_PASSWORD is required}"
 
+create_db_and_user \
+    "scraper" \
+    "scraper" \
+    "${SCRAPER_DB_PASSWORD:?SCRAPER_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "affine" \
+    "affine" \
+    "${AFFINE_DB_PASSWORD:?AFFINE_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "agent_tasks" \
+    "agent_bridge" \
+    "${AGENT_BRIDGE_DB_PASSWORD:?AGENT_BRIDGE_DB_PASSWORD is required}"
+
 log "All databases initialised successfully."

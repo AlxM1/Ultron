@@ -99,8 +99,8 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-}
     ports:
-      - "9000:9000"
-      - "9443:9443"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9443:9443"
     volumes:
       - authentik_media:/media
       - authentik_templates:/templates
@@ -197,7 +197,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -251,7 +251,7 @@ services:
     container_name: raiser-agentsmith-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       agentsmith-backend:
         condition: service_healthy
@@ -267,7 +267,7 @@ services:
     container_name: raiser-agentsmith-admin
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     depends_on:
       agentsmith-backend:
         condition: service_healthy
@@ -334,7 +334,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "3100:3000"
+      - "127.0.0.1:3100:3000"
     volumes:
       - /mnt/data/00raiser/media/krya:/app/uploads
     depends_on:
@@ -386,7 +386,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "8400:8400"
+      - "127.0.0.1:8400:8400"
     volumes:
       - /mnt/data/00raiser/media/apify:/app/uploads
       - /mnt/data/00raiser/media/scraper:/mnt/data/00raiser/media/scraper
@@ -420,11 +420,11 @@ services:
       PORT: 8000
       # Database (asyncpg — matches voiceforge docker-compose)
       DATABASE_URL: postgresql+asyncpg://voiceforge:${VOICEFORGE_DB_PASSWORD}@postgres:5432/voiceforge
-      # Redis
+      # Redis (DB 3 — 0=Authentik, 1=Krya, 2=Apify, 3=VoiceForge, 4=AFFiNE)
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: 2
+      REDIS_DB: 3
       # Storage
       STORAGE_TYPE: local
       STORAGE_PATH: /app/storage
@@ -446,7 +446,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "8100:8000"
+      - "127.0.0.1:8100:8000"
     volumes:
       - voiceforge_storage:/app/storage
       - voiceforge_models:/home/voiceforge/.cache
@@ -484,7 +484,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "8200:8000"
+      - "127.0.0.1:8200:8000"
     volumes:
       - youtubedl_downloads:/app/downloads
       - youtubedl_data:/app/data
@@ -527,7 +527,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "8766:8766"
+      - "127.0.0.1:8766:8766"
     volumes:
       - whisperflow_data:/data
     depends_on:
@@ -584,7 +584,7 @@ services:
       # Task Bridge
       TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
     ports:
-      - "8300:8000"
+      - "127.0.0.1:8300:8000"
     volumes:
       - nvp_data:/app/data
       - nvp_logs:/app/logs
@@ -640,7 +640,7 @@ services:
       REDIS_SERVER_DATABASE: "4"
       AFFINE_INDEXER_ENABLED: "false"
     ports:
-      - "3010:3010"
+      - "127.0.0.1:3010:3010"
     volumes:
       - /mnt/data/00raiser/services/affine/storage:/root/.affine/storage
       - /mnt/data/00raiser/services/affine/config:/root/.affine/config
@@ -671,7 +671,7 @@ services:
       PORT: "3011"
       DATABASE_URL: postgresql://agent_bridge:${AGENT_BRIDGE_DB_PASSWORD}@postgres:5432/agent_tasks
     ports:
-      - "3011:3011"
+      - "127.0.0.1:3011:3011"
     depends_on:
       postgres:
         condition: service_healthy
@@ -700,7 +700,7 @@ services:
       MAX_VIDEOS_DEFAULT: "50"
       REFRESH_CRON: "0 3 * * 0"   # Sunday 3 AM UTC
     ports:
-      - "8500:8500"
+      - "127.0.0.1:8500:8500"
     volumes:
       - persona_data:/app/data
     depends_on:
@@ -729,7 +729,7 @@ services:
       # Voice AI
       WHISPERFLOW_URL: http://raiser-whisperflow:8766
       VOICEFORGE_URL: http://raiser-voiceforge:8000
-      VOICEFORGE_API_KEY: vf_ntXKTVA-MhTS4_tRJwqz16n4k5lwfncihY5Bx4_1mVI
+      VOICEFORGE_API_KEY: ${VOICEFORGE_API_KEY}
       JARVIS_VOICE_ID: vc_9b3e2ec001812cc1
       GPU_TTS_URL: http://10.25.10.60:8001
       GPU_STT_URL: http://10.25.10.60:8765
@@ -743,7 +743,7 @@ services:
       PERSONA_URL: http://raiser-persona-pipeline:8500
       NEXT_PUBLIC_PICOVOICE_KEY: ${PICOVOICE_KEY:-}
     ports:
-      - "3020:3020"
+      - "127.0.0.1:3020:3020"
     depends_on:
       agent-bridge:
         condition: service_started

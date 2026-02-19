@@ -42,13 +42,17 @@ const allowedOrigins = process.env.CORS_ORIGINS
 
 app.use('*', cors({
   origin: (origin) => {
+    // SECURITY FIX: Restrict CORS even in development
     if (!origin) return origin;
     
-    if (process.env.NODE_ENV === 'production') {
-      return allowedOrigins.includes(origin) ? origin : null;
+    // Always validate against allowed origins
+    const isAllowed = allowedOrigins.includes(origin);
+    
+    if (!isAllowed && process.env.NODE_ENV !== 'production') {
+      console.warn(`⚠️  CORS: Origin ${origin} not in allowed list. Add to CORS_ORIGINS if needed.`);
     }
     
-    return origin;
+    return isAllowed ? origin : null;
   },
   credentials: false,
 }));

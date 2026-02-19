@@ -8,6 +8,15 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// SECURITY FIX: Require DATABASE_URL in production, no default credentials
+if (!process.env.DATABASE_URL) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('DATABASE_URL environment variable is required in production');
+  } else {
+    console.warn('⚠️  SECURITY WARNING: DATABASE_URL not set, using development default');
+  }
+}
+
 // PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://content_intel:password@postgres:5432/content_intel',

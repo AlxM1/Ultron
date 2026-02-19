@@ -10,16 +10,31 @@ import * as cheerio from 'cheerio';
 const APIFY_SCRAPER_URL = process.env.APIFY_SCRAPER_URL || 'http://raiser-apify:8400';
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
+// SECURITY FIX: Validate Apify scraper URL at startup
+try {
+  const apifyUrl = new URL(APIFY_SCRAPER_URL);
+  if (!['http:', 'https:'].includes(apifyUrl.protocol)) {
+    throw new Error('Invalid APIFY_SCRAPER_URL protocol');
+  }
+  console.log('✓ Apify scraper URL validated:', APIFY_SCRAPER_URL);
+} catch (err) {
+  console.error('⚠️  Invalid APIFY_SCRAPER_URL:', err.message);
+}
+
 /**
  * Scrape a YouTube channel using Apify service
  */
 export async function scrapeChannelViaApify(channelHandle) {
   try {
+    // SECURITY FIX: URL-encode the channel handle to prevent path manipulation
+    const encodedHandle = encodeURIComponent(channelHandle);
+    const channelUrl = `https://youtube.com/@${encodedHandle}`;
+    
     const response = await fetch(`${APIFY_SCRAPER_URL}/api/youtube/channel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        channelUrl: `https://youtube.com/@${channelHandle}`,
+        channelUrl: channelUrl,
         maxVideos: 20
       })
     });
@@ -40,7 +55,9 @@ export async function scrapeChannelViaApify(channelHandle) {
  */
 export async function scrapeChannelDirect(channelHandle) {
   try {
-    const url = `https://youtube.com/@${channelHandle}`;
+    // SECURITY FIX: URL-encode the channel handle to prevent path manipulation
+    const encodedHandle = encodeURIComponent(channelHandle);
+    const url = `https://youtube.com/@${encodedHandle}`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'

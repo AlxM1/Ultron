@@ -7,6 +7,17 @@ import fetch from 'node-fetch';
 
 const APIFY_SCRAPER_URL = process.env.APIFY_SCRAPER_URL || 'http://raiser-apify:8400';
 
+// SECURITY FIX: Validate Apify scraper URL at startup
+try {
+  const apifyUrl = new URL(APIFY_SCRAPER_URL);
+  if (!['http:', 'https:'].includes(apifyUrl.protocol)) {
+    throw new Error('Invalid APIFY_SCRAPER_URL protocol');
+  }
+  console.log('✓ Twitter scraper URL validated:', APIFY_SCRAPER_URL);
+} catch (err) {
+  console.error('⚠️  Invalid APIFY_SCRAPER_URL:', err.message);
+}
+
 /**
  * Scrape a Twitter/X profile
  */

@@ -5,14 +5,16 @@ import { services, type Service } from "./services";
 import MenuBar from "./components/MenuBar";
 import Dock from "./components/Dock";
 import AppFrame from "./components/AppFrame";
-const Dashboard = dynamic(() => import("./components/Dashboard"), {
-  ssr: false,
-});
+import Dashboard from "./components/Dashboard";
 import Settings from "./components/Settings";
 import VoiceButton from "./components/VoiceButton";
 import ChatPanel from "./components/ChatPanel";
 import PersonaAvatar from "./components/PersonaAvatar";
 import PersonaChatPanel from "./components/PersonaChatPanel";
+import ServicesPage from "./pages/ServicesPage";
+import ContentIntelPage from "./pages/ContentIntelPage";
+import TimelinePage from "./pages/TimelinePage";
+import WorkflowsPage from "./pages/WorkflowsPage";
 import { useVoice } from "./hooks/useVoice";
 import dynamic from "next/dynamic";
 
@@ -20,8 +22,11 @@ const JarvisHUD = dynamic(() => import("./components/JarvisHUD"), {
   ssr: false,
 });
 
+type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows";
+
 export default function Home() {
   const [activeApp, setActiveApp] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<PageView>("home");
   const [healthStatus, setHealthStatus] = useState<Record<string, boolean>>({});
   const [bootComplete, setBootComplete] = useState(false);
   const [personaChatOpen, setPersonaChatOpen] = useState(false);
@@ -117,18 +122,38 @@ export default function Home() {
           transition: "opacity 0.5s ease",
         }}
       >
-      <MenuBar activeService={activeService} onHome={() => setActiveApp(null)} />
+      <MenuBar 
+        activeService={activeService} 
+        activePage={activePage}
+        onHome={() => {
+          setActiveApp(null);
+          setActivePage("home");
+        }}
+        onNavigate={(page) => {
+          setActiveApp(null);
+          setActivePage(page);
+        }}
+      />
 
       <main style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         {activeApp === "settings" ? (
           <Settings />
         ) : activeApp && activeService?.url ? (
           <AppFrame service={activeService} />
+        ) : activePage === "services" ? (
+          <ServicesPage services={services} healthStatus={healthStatus} />
+        ) : activePage === "content-intel" ? (
+          <ContentIntelPage />
+        ) : activePage === "timeline" ? (
+          <TimelinePage />
+        ) : activePage === "workflows" ? (
+          <WorkflowsPage />
         ) : (
           <Dashboard
             services={services}
             healthStatus={healthStatus}
             onSelect={handleAppSelect}
+            onNavigate={setActivePage}
             bootComplete={bootComplete}
           />
         )}

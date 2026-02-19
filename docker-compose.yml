@@ -698,6 +698,7 @@ services:
       OLLAMA_URL: http://10.25.10.60:11434
       DEFAULT_LLM_MODEL: llama3.2
       MAX_VIDEOS_DEFAULT: "50"
+      REFRESH_CRON: "0 3 * * 0"   # Sunday 3 AM UTC
     ports:
       - "8500:8500"
     volumes:

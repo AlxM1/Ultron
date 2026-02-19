@@ -5,14 +5,18 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from config import REFRESH_CRON
+from auth import require_api_key, limiter
 
 logger = logging.getLogger("app")
 
@@ -56,6 +60,8 @@ async def _run_refresh(persona_id: int):
 
 
 app = FastAPI(title="Persona Pipeline", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 class CreatePersonaRequest(BaseModel):
@@ -83,7 +89,8 @@ async def health():
 
 
 @app.post("/api/personas")
-async def create_persona(req: CreatePersonaRequest, background_tasks: BackgroundTasks):
+@limiter.limit("10/minute")
+async def create_persona(request: Request, req: CreatePersonaRequest, background_tasks: BackgroundTasks, _auth=Depends(require_api_key)):
     from pipeline import run_full_pipeline
     from database import create_persona_agent
 
@@ -106,7 +113,8 @@ async def create_persona(req: CreatePersonaRequest, background_tasks: Background
 
 
 @app.get("/api/personas")
-async def list_personas():
+@limiter.limit("30/minute")
+async def list_personas(request: Request, _auth=Depends(require_api_key)):
     from database import get_all_personas
 
     personas = await get_all_personas()
@@ -114,7 +122,8 @@ async def list_personas():
 
 
 @app.get("/api/personas/{slug}")
-async def get_persona(slug: str):
+@limiter.limit("30/minute")
+async def get_persona(request: Request, slug: str, _auth=Depends(require_api_key)):
     from database import get_persona_by_slug
 
     persona = await get_persona_by_slug(slug)
@@ -124,14 +133,16 @@ async def get_persona(slug: str):
 
 
 @app.get("/api/personas/{slug}/content")
-async def get_persona_content(slug: str, limit: int = 20, offset: int = 0):
+@limiter.limit("30/minute")
+async def get_persona_content(request: Request, slug: str, limit: int = 20, offset: int = 0, _auth=Depends(require_api_key)):
     from database import get_persona_content
 
     return await get_persona_content(slug, limit, offset)
 
 
 @app.post("/api/personas/{slug}/chat")
-async def chat_with_persona(slug: str, req: ChatRequest):
+@limiter.limit("30/minute")
+async def chat_with_persona(request: Request, slug: str, req: ChatRequest, _auth=Depends(require_api_key)):
     from persona_chat import chat
     from database import get_persona_by_slug, save_output
 
@@ -148,7 +159,8 @@ async def chat_with_persona(slug: str, req: ChatRequest):
 
 
 @app.post("/api/personas/{slug}/generate-script")
-async def generate_script(slug: str, req: GenerateScriptRequest):
+@limiter.limit("10/minute")
+async def generate_script(request: Request, slug: str, req: GenerateScriptRequest, _auth=Depends(require_api_key)):
     from persona_chat import generate_script
     from database import get_persona_by_slug, save_output
 
@@ -163,7 +175,8 @@ async def generate_script(slug: str, req: GenerateScriptRequest):
 
 
 @app.post("/api/personas/{slug}/reanalyze")
-async def reanalyze_persona(slug: str, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+async def reanalyze_persona(request: Request, slug: str, background_tasks: BackgroundTasks, _auth=Depends(require_api_key)):
     from pipeline import run_analysis
     from database import get_persona_by_slug
 
@@ -176,7 +189,7 @@ async def reanalyze_persona(slug: str, background_tasks: BackgroundTasks):
 
 
 @app.delete("/api/personas/{slug}")
-async def delete_persona(slug: str):
+async def delete_persona(request: Request, slug: str, _auth=Depends(require_api_key)):
     from database import delete_persona_by_slug
 
     deleted = await delete_persona_by_slug(slug)
@@ -186,7 +199,8 @@ async def delete_persona(slug: str):
 
 
 @app.post("/api/personas/{slug}/refresh")
-async def refresh_persona(slug: str, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+async def refresh_persona(request: Request, slug: str, background_tasks: BackgroundTasks, _auth=Depends(require_api_key)):
     from pipeline import run_incremental_update
     from database import get_persona_by_slug
 
@@ -219,7 +233,7 @@ async def refresh_persona(slug: str, background_tasks: BackgroundTasks):
 
 
 @app.get("/api/scheduler")
-async def get_scheduler_status():
+async def get_scheduler_status(request: Request, _auth=Depends(require_api_key)):
     jobs = []
     for job in scheduler.get_jobs():
         jobs.append({

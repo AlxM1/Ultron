@@ -1,0 +1,19 @@
+{
+  "name": "cortex",
+  "version": "1.0.0",
+  "description": "Activity tracking and monitoring layer for 00raiser platform",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["monitoring", "tracking", "00raiser", "cortex"],
+  "author": "00raiser",
+  "license": "MIT",
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1"
+  }
+}

@@ -96,6 +96,6 @@ create_db_and_user \
 create_db_and_user \
     "agent_tasks" \
     "agent_bridge" \
-    "${AGENT_BRIDGE_DB_PASSWORD:?AGENT_BRIDGE_DB_PASSWORD is required}"
+    "${CORTEX_DB_PASSWORD:?CORTEX_DB_PASSWORD is required}"
 
 log "All databases initialised successfully."

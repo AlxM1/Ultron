@@ -41,7 +41,7 @@ services:
       NVP_DB_PASSWORD: ${NVP_DB_PASSWORD}
       SCRAPER_DB_PASSWORD: ${SCRAPER_DB_PASSWORD}
       AFFINE_DB_PASSWORD: ${AFFINE_DB_PASSWORD}
-      AGENT_BRIDGE_DB_PASSWORD: ${AGENT_BRIDGE_DB_PASSWORD}
+      CORTEX_DB_PASSWORD: ${CORTEX_DB_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -195,7 +195,7 @@ services:
       # Logging
       LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:4000:4000"
     depends_on:
@@ -230,7 +230,7 @@ services:
       WORKER_CONCURRENCY: ${AGENTSMITH_WORKER_CONCURRENCY:-5}
       EXECUTION_TIMEOUT: 3600000
       LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     depends_on:
       postgres:
         condition: service_healthy
@@ -332,7 +332,7 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:3100:3000"
     volumes:
@@ -384,7 +384,7 @@ services:
       INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD:-}
       INSTAGRAM_PROXY: ${INSTAGRAM_PROXY:-}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:8400:8400"
     volumes:
@@ -444,7 +444,7 @@ services:
       NUMBA_CACHE_DIR: /tmp/numba_cache
       MPLCONFIGDIR: /tmp/matplotlib
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:8100:8000"
     volumes:
@@ -482,7 +482,7 @@ services:
       MIN_FREE_DISK_MB: ${YOUTUBEDL_MIN_FREE_DISK_MB:-500}
       API_KEY: ${YOUTUBEDL_API_KEY:-}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:8200:8000"
     volumes:
@@ -525,7 +525,7 @@ services:
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:8766:8766"
     volumes:
@@ -582,7 +582,7 @@ services:
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
       # Task Bridge
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
       - "127.0.0.1:8300:8000"
     volumes:
@@ -655,21 +655,22 @@ services:
       - raiser-net
 
   # ===========================================================================
-  # AGENT TASK BRIDGE — Agent/Service Activity Tracker
+  # CORTEX — Activity Tracking & Monitoring
   # ===========================================================================
-  # REST API + calendar UI for tracking agent activity across the stack.
-  # Build context: services/agent-bridge (Node.js + Hono + pg)
+  # REST API for tracking task activity across all 00raiser services.
+  # Build context: services/cortex (Node.js + Hono + pg)
 
-  agent-bridge:
+  cortex:
     build:
-      context: ./services/agent-bridge
+      context: ./services/cortex
       dockerfile: Dockerfile
-    container_name: raiser-agent-bridge
+    container_name: raiser-cortex
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: "3011"
-      DATABASE_URL: postgresql://agent_bridge:${AGENT_BRIDGE_DB_PASSWORD}@postgres:5432/agent_tasks
+      DATABASE_URL: postgresql://agent_bridge:${CORTEX_DB_PASSWORD}@postgres:5432/agent_tasks
+      CORTEX_API_KEY: ${CORTEX_API_KEY}
     ports:
       - "127.0.0.1:3011:3011"
     depends_on:
@@ -725,7 +726,7 @@ services:
       NODE_ENV: production
       PORT: "3020"
       NEXT_PUBLIC_TASK_BRIDGE_URL: https://tasks.00raiser.space
-      TASK_BRIDGE_URL: http://raiser-agent-bridge:3011
+      TASK_BRIDGE_URL: http://raiser-cortex:3011
       # Voice AI
       WHISPERFLOW_URL: http://raiser-whisperflow:8766
       VOICEFORGE_URL: http://raiser-voiceforge:8000
@@ -745,7 +746,7 @@ services:
     ports:
       - "127.0.0.1:3020:3020"
     depends_on:
-      agent-bridge:
+      cortex:
         condition: service_started
     networks:
       - raiser-net

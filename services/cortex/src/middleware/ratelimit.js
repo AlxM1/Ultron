@@ -1,6 +1,10 @@
 /**
  * Simple in-memory rate limiter
  * Limits requests per IP address
+ * 
+ * Uses direct connection IP to prevent X-Forwarded-For spoofing.
+ * If behind a reverse proxy, configure trusted proxy headers in your reverse proxy
+ * and use a middleware that validates them properly.
  */
 
 const requests = new Map();
@@ -8,7 +12,20 @@ const WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 100; // per window
 
 export function rateLimit(c, next) {
-  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+  // Use env.incoming.socket.remoteAddress or fallback to unknown
+  // This prevents X-Forwarded-For spoofing
+  let ip = 'unknown';
+  
+  try {
+    // Hono with Node.js adapter exposes the request via env
+    const nodeReq = c.env?.incoming;
+    if (nodeReq?.socket?.remoteAddress) {
+      ip = nodeReq.socket.remoteAddress;
+    }
+  } catch (err) {
+    console.warn('Could not extract real IP:', err.message);
+  }
+  
   const now = Date.now();
   
   if (!requests.has(ip)) {
@@ -22,8 +39,7 @@ export function rateLimit(c, next) {
   
   if (recentRequests.length >= MAX_REQUESTS) {
     return c.json({ 
-      error: 'Too Many Requests', 
-      message: `Rate limit exceeded. Max ${MAX_REQUESTS} requests per minute.` 
+      error: 'Too Many Requests'
     }, 429);
   }
 
@@ -34,7 +50,8 @@ export function rateLimit(c, next) {
 }
 
 // Cleanup old entries every 5 minutes
-setInterval(() => {
+// Use unref() to allow process to exit cleanly
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [ip, timestamps] of requests.entries()) {
     const recent = timestamps.filter(t => now - t < WINDOW_MS);
@@ -45,3 +62,5 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+cleanupInterval.unref();

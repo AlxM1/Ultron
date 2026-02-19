@@ -3,6 +3,65 @@ import pool from '../db.js';
 
 const tasks = new Hono();
 
+// Input validation constants
+const MAX_SERVICE_NAME_LENGTH = 255;
+const MAX_TASK_TYPE_LENGTH = 255;
+const MAX_ERROR_MESSAGE_LENGTH = 10000; // 10KB max for error messages
+const MAX_METADATA_SIZE = 100000; // 100KB max for metadata JSON
+const MAX_LIMIT = 200;
+const MAX_OFFSET = 1000000;
+
+/**
+ * Validate and sanitize inputs
+ */
+function validateTaskInput(body) {
+  const { service_name, task_type, error_message, metadata } = body;
+  
+  if (!service_name || typeof service_name !== 'string') {
+    return { valid: false, error: 'service_name is required and must be a string' };
+  }
+  if (service_name.length > MAX_SERVICE_NAME_LENGTH) {
+    return { valid: false, error: `service_name must not exceed ${MAX_SERVICE_NAME_LENGTH} characters` };
+  }
+  
+  if (!task_type || typeof task_type !== 'string') {
+    return { valid: false, error: 'task_type is required and must be a string' };
+  }
+  if (task_type.length > MAX_TASK_TYPE_LENGTH) {
+    return { valid: false, error: `task_type must not exceed ${MAX_TASK_TYPE_LENGTH} characters` };
+  }
+  
+  if (error_message && typeof error_message !== 'string') {
+    return { valid: false, error: 'error_message must be a string' };
+  }
+  if (error_message && error_message.length > MAX_ERROR_MESSAGE_LENGTH) {
+    return { valid: false, error: `error_message must not exceed ${MAX_ERROR_MESSAGE_LENGTH} characters` };
+  }
+  
+  if (metadata !== undefined) {
+    if (typeof metadata !== 'object' || metadata === null) {
+      return { valid: false, error: 'metadata must be an object' };
+    }
+    const metadataStr = JSON.stringify(metadata);
+    if (metadataStr.length > MAX_METADATA_SIZE) {
+      return { valid: false, error: `metadata must not exceed ${MAX_METADATA_SIZE} bytes` };
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validate task ID is a positive integer
+ */
+function validateTaskId(id) {
+  const numId = parseInt(id, 10);
+  if (isNaN(numId) || numId <= 0 || numId.toString() !== id) {
+    return { valid: false, error: 'Invalid task ID' };
+  }
+  return { valid: true, id: numId };
+}
+
 /**
  * POST /api/tasks
  * Register a new task
@@ -12,12 +71,14 @@ tasks.post('/', async (c) => {
     const body = await c.req.json();
     const { service_name, task_type, status = 'pending', metadata = {}, started_at, error_message } = body;
 
-    if (!service_name || !task_type) {
-      return c.json({ error: 'Bad Request', message: 'service_name and task_type are required' }, 400);
+    // Validate inputs
+    const validation = validateTaskInput(body);
+    if (!validation.valid) {
+      return c.json({ error: 'Bad Request', message: validation.error }, 400);
     }
 
     if (!['pending', 'running', 'completed', 'failed'].includes(status)) {
-      return c.json({ error: 'Bad Request', message: 'Invalid status. Must be: pending, running, completed, or failed' }, 400);
+      return c.json({ error: 'Bad Request', message: 'Invalid status' }, 400);
     }
 
     const result = await pool.query(
@@ -30,7 +91,7 @@ tasks.post('/', async (c) => {
     return c.json({ task: result.rows[0] }, 201);
   } catch (err) {
     console.error('Error creating task:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
@@ -41,12 +102,35 @@ tasks.post('/', async (c) => {
 tasks.patch('/:id', async (c) => {
   try {
     const { id } = c.req.param();
+    
+    // Validate task ID
+    const idValidation = validateTaskId(id);
+    if (!idValidation.valid) {
+      return c.json({ error: 'Bad Request', message: idValidation.error }, 400);
+    }
+    
     const body = await c.req.json();
     const { status, metadata, completed_at, duration_ms, error_message } = body;
 
     // Validate status if provided
     if (status && !['pending', 'running', 'completed', 'failed'].includes(status)) {
       return c.json({ error: 'Bad Request', message: 'Invalid status' }, 400);
+    }
+
+    // Validate error_message length
+    if (error_message && typeof error_message === 'string' && error_message.length > MAX_ERROR_MESSAGE_LENGTH) {
+      return c.json({ error: 'Bad Request', message: `error_message exceeds maximum length` }, 400);
+    }
+
+    // Validate metadata size
+    if (metadata !== undefined) {
+      if (typeof metadata !== 'object' || metadata === null) {
+        return c.json({ error: 'Bad Request', message: 'metadata must be an object' }, 400);
+      }
+      const metadataStr = JSON.stringify(metadata);
+      if (metadataStr.length > MAX_METADATA_SIZE) {
+        return c.json({ error: 'Bad Request', message: 'metadata exceeds maximum size' }, 400);
+      }
     }
 
     // Build dynamic UPDATE query
@@ -84,20 +168,20 @@ tasks.patch('/:id', async (c) => {
       return c.json({ error: 'Bad Request', message: 'No fields to update' }, 400);
     }
 
-    values.push(id);
+    values.push(idValidation.id);
     const result = await pool.query(
       `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
 
     if (result.rows.length === 0) {
-      return c.json({ error: 'Not Found', message: 'Task not found' }, 404);
+      return c.json({ error: 'Not Found' }, 404);
     }
 
     return c.json({ task: result.rows[0] });
   } catch (err) {
     console.error('Error updating task:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
@@ -109,6 +193,24 @@ tasks.get('/', async (c) => {
   try {
     const { service, status, limit = '50', offset = '0' } = c.req.query();
 
+    // Validate and clamp limit and offset
+    let limitNum = parseInt(limit, 10);
+    let offsetNum = parseInt(offset, 10);
+    
+    if (isNaN(limitNum) || limitNum < 1) {
+      limitNum = 50;
+    }
+    if (limitNum > MAX_LIMIT) {
+      limitNum = MAX_LIMIT;
+    }
+    
+    if (isNaN(offsetNum) || offsetNum < 0) {
+      offsetNum = 0;
+    }
+    if (offsetNum > MAX_OFFSET) {
+      offsetNum = MAX_OFFSET;
+    }
+
     const conditions = [];
     const values = [];
     let paramIndex = 1;
@@ -119,14 +221,17 @@ tasks.get('/', async (c) => {
     }
 
     if (status) {
+      if (!['pending', 'running', 'completed', 'failed'].includes(status)) {
+        return c.json({ error: 'Bad Request', message: 'Invalid status' }, 400);
+      }
       conditions.push(`status = $${paramIndex++}`);
       values.push(status);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     
-    values.push(parseInt(limit, 10));
-    values.push(parseInt(offset, 10));
+    values.push(limitNum);
+    values.push(offsetNum);
 
     const result = await pool.query(
       `SELECT * FROM tasks ${whereClause} 
@@ -144,12 +249,12 @@ tasks.get('/', async (c) => {
     return c.json({
       tasks: result.rows,
       total: parseInt(countResult.rows[0].total, 10),
-      limit: parseInt(limit, 10),
-      offset: parseInt(offset, 10)
+      limit: limitNum,
+      offset: offsetNum
     });
   } catch (err) {
     console.error('Error fetching tasks:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
@@ -160,16 +265,23 @@ tasks.get('/', async (c) => {
 tasks.get('/:id', async (c) => {
   try {
     const { id } = c.req.param();
-    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    
+    // Validate task ID
+    const idValidation = validateTaskId(id);
+    if (!idValidation.valid) {
+      return c.json({ error: 'Bad Request', message: idValidation.error }, 400);
+    }
+    
+    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [idValidation.id]);
 
     if (result.rows.length === 0) {
-      return c.json({ error: 'Not Found', message: 'Task not found' }, 404);
+      return c.json({ error: 'Not Found' }, 404);
     }
 
     return c.json({ task: result.rows[0] });
   } catch (err) {
     console.error('Error fetching task:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
@@ -197,7 +309,7 @@ tasks.get('/stats/aggregate', async (c) => {
     return c.json({ stats: result.rows });
   } catch (err) {
     console.error('Error fetching stats:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 

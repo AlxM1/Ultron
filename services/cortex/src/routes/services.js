@@ -25,7 +25,7 @@ services.get('/', async (c) => {
     return c.json({ services: result.rows });
   } catch (err) {
     console.error('Error fetching services:', err);
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 

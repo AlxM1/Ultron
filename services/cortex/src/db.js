@@ -1,8 +1,14 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+// Validate DATABASE_URL is set in production
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+  console.error('🔴 FATAL: DATABASE_URL environment variable is required in production');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://agent_bridge:PASSWORD@localhost:5432/agent_tasks',
+  connectionString: process.env.DATABASE_URL || 'postgresql://agent_bridge:dev_password@localhost:5432/agent_tasks',
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,

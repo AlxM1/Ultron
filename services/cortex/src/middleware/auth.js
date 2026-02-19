@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * API Key Authentication Middleware
  * Validates X-API-Key header against CORTEX_API_KEY environment variable
@@ -6,15 +8,47 @@ export function apiKeyAuth(c, next) {
   const apiKey = c.req.header('X-API-Key');
   const validApiKey = process.env.CORTEX_API_KEY;
 
-  // Skip auth if no API key is configured (development mode)
+  // Refuse to authenticate if no API key is configured in production
   if (!validApiKey) {
-    console.warn('⚠️  CORTEX_API_KEY not set - authentication disabled');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('🔴 FATAL: CORTEX_API_KEY not set in production - refusing to start');
+      process.exit(1);
+    }
+    console.warn('⚠️  CORTEX_API_KEY not set - authentication disabled (development only)');
     return next();
   }
 
-  if (!apiKey || apiKey !== validApiKey) {
-    return c.json({ error: 'Unauthorized', message: 'Invalid or missing API key' }, 401);
+  if (!apiKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Constant-time comparison to prevent timing attacks
+  try {
+    const apiKeyBuffer = Buffer.from(apiKey);
+    const validKeyBuffer = Buffer.from(validApiKey);
+    
+    if (apiKeyBuffer.length !== validKeyBuffer.length) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    if (!crypto.timingSafeEqual(apiKeyBuffer, validKeyBuffer)) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+  } catch (err) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   return next();
+}
+
+/**
+ * Validate API key at startup
+ * Call this before starting the server
+ */
+export function validateApiKeyConfig() {
+  if (!process.env.CORTEX_API_KEY && process.env.NODE_ENV === 'production') {
+    console.error('🔴 FATAL: CORTEX_API_KEY environment variable is required in production');
+    console.error('Set CORTEX_API_KEY in your .env file or environment');
+    process.exit(1);
+  }
 }

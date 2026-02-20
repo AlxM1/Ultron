@@ -6,6 +6,7 @@ import { bodyLimit } from 'hono/body-limit';
 import pool, { initializeDatabase } from './db.js';
 import { apiKeyAuth, validateApiKeyConfig } from './middleware/auth.js';
 import { rateLimit } from './middleware/ratelimit.js';
+import { getCortex } from './cortex.js';
 
 // Route imports
 import creators from './routes/creators.js';
@@ -67,18 +68,37 @@ app.use('*', bodyLimit({
 
 // Health check (no auth required)
 app.get('/health', async (c) => {
+  const cortex = getCortex();
+  const healthDetails = {};
+  let isHealthy = true;
+  
   try {
     await pool.query('SELECT 1');
+    healthDetails.database = 'ok';
+  } catch (err) {
+    console.error('Health check failed:', err);
+    healthDetails.database = 'error';
+    healthDetails.database_error = err.message;
+    isHealthy = false;
+  }
+
+  // Report health to Cortex (non-blocking)
+  cortex.healthCheck(isHealthy ? 'ok' : 'degraded', healthDetails).catch(() => {
+    // Ignore Cortex reporting errors during health check
+  });
+
+  if (isHealthy) {
     return c.json({ 
       status: 'healthy', 
       service: 'content-intel',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      details: healthDetails
     });
-  } catch (err) {
-    console.error('Health check failed:', err);
+  } else {
     return c.json({ 
       status: 'unhealthy', 
-      service: 'content-intel'
+      service: 'content-intel',
+      details: healthDetails
     }, 503);
   }
 });

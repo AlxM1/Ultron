@@ -30,20 +30,54 @@ pool.on('error', (err) => {
   console.error('Unexpected database pool error:', err);
 });
 
-// Initialize database schema
+// Initialize database schema with retry logic
 export async function initializeDatabase() {
-  const client = await pool.connect();
-  try {
-    console.log('Initializing database schema...');
-    const schemaPath = join(__dirname, '..', 'sql', 'schema.sql');
-    const schema = await readFile(schemaPath, 'utf-8');
-    await client.query(schema);
-    console.log('Database schema initialized successfully');
-  } catch (err) {
-    console.error('Failed to initialize database schema:', err);
-    throw err;
-  } finally {
-    client.release();
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    const client = await pool.connect();
+    try {
+      console.log(`Initializing database schema... (attempt ${retryCount + 1}/${maxRetries})`);
+      const schemaPath = join(__dirname, '..', 'sql', 'schema.sql');
+      const schema = await readFile(schemaPath, 'utf-8');
+      
+      // Execute schema initialization with explicit transaction
+      await client.query('BEGIN');
+      await client.query(schema);
+      await client.query('COMMIT');
+      
+      console.log('Database schema initialized successfully');
+      return; // Success - exit retry loop
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {}); // Ignore rollback errors
+      
+      // Check for "already exists" errors - these are often not fatal
+      if (err.code === '42P07') {
+        console.warn(`Schema object already exists (${err.message}), continuing...`);
+        if (retryCount === maxRetries - 1) {
+          // On final retry, treat "already exists" as success
+          console.log('Database schema appears to be already initialized');
+          return;
+        }
+      }
+      
+      console.error(`Failed to initialize database schema (attempt ${retryCount + 1}):`, err.message);
+      retryCount++;
+      
+      if (retryCount >= maxRetries) {
+        console.error('Max retries exceeded for database initialization');
+        throw err;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+    } finally {
+      client.release();
+    }
   }
 }
 

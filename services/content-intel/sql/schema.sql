@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS creators (
   UNIQUE(platform, handle)
 );
 
-CREATE INDEX idx_creators_platform ON creators(platform);
-CREATE INDEX idx_creators_last_scraped ON creators(last_scraped_at);
+CREATE INDEX IF NOT EXISTS idx_creators_platform ON creators(platform);
+CREATE INDEX IF NOT EXISTS idx_creators_last_scraped ON creators(last_scraped_at);
 
 -- Scraped content (videos, tweets)
 CREATE TABLE IF NOT EXISTS content (
@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS content (
   UNIQUE(platform, external_id)
 );
 
-CREATE INDEX idx_content_creator ON content(creator_id);
-CREATE INDEX idx_content_platform ON content(platform);
-CREATE INDEX idx_content_published ON content(published_at DESC);
-CREATE INDEX idx_content_scraped ON content(scraped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_creator ON content(creator_id);
+CREATE INDEX IF NOT EXISTS idx_content_platform ON content(platform);
+CREATE INDEX IF NOT EXISTS idx_content_published ON content(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_scraped ON content(scraped_at DESC);
 
 -- Comments from videos/posts
 CREATE TABLE IF NOT EXISTS comments (
@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS comments (
   scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_comments_content ON comments(content_id);
-CREATE INDEX idx_comments_likes ON comments(likes DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_content ON comments(content_id);
+CREATE INDEX IF NOT EXISTS idx_comments_likes ON comments(likes DESC);
 
 -- Trending topics and keywords
 CREATE TABLE IF NOT EXISTS trends (
@@ -62,9 +62,9 @@ CREATE TABLE IF NOT EXISTS trends (
   category VARCHAR(100)
 );
 
-CREATE INDEX idx_trends_keyword ON trends(keyword);
-CREATE INDEX idx_trends_score ON trends(score DESC);
-CREATE INDEX idx_trends_last_seen ON trends(last_seen DESC);
+CREATE INDEX IF NOT EXISTS idx_trends_keyword ON trends(keyword);
+CREATE INDEX IF NOT EXISTS idx_trends_score ON trends(score DESC);
+CREATE INDEX IF NOT EXISTS idx_trends_last_seen ON trends(last_seen DESC);
 
 -- Content ideas generated from analysis
 CREATE TABLE IF NOT EXISTS ideas (
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS ideas (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_ideas_status ON ideas(status);
-CREATE INDEX idx_ideas_score ON ideas(score DESC);
-CREATE INDEX idx_ideas_created ON ideas(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(status);
+CREATE INDEX IF NOT EXISTS idx_ideas_score ON ideas(score DESC);
+CREATE INDEX IF NOT EXISTS idx_ideas_created ON ideas(created_at DESC);
 
 -- Update timestamps trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -91,11 +91,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS creators_updated_at ON creators;
 CREATE TRIGGER creators_updated_at
   BEFORE UPDATE ON creators
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS ideas_updated_at ON ideas;
 CREATE TRIGGER ideas_updated_at
   BEFORE UPDATE ON ideas
   FOR EACH ROW

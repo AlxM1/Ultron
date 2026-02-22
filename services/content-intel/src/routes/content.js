@@ -29,10 +29,22 @@ content.get('/', async (c) => {
     }
 
     if (creatorId) {
+      if (!/^\d+$/.test(creatorId)) {
+        return c.json({ error: 'Invalid creator_id — must be a positive integer' }, 400);
+      }
+      const parsedCreatorId = parseInt(creatorId, 10);
+      if (isNaN(parsedCreatorId) || parsedCreatorId < 1) {
+        return c.json({ error: 'Invalid creator_id — must be a positive integer' }, 400);
+      }
       paramCount++;
       query += ` AND c.creator_id = $${paramCount}`;
-      params.push(parseInt(creatorId));
+      params.push(parsedCreatorId);
     }
+
+    // Validate and cap limit/offset
+    if (isNaN(limit) || limit < 1) return c.json({ error: 'Invalid limit' }, 400);
+    if (isNaN(offset) || offset < 0) return c.json({ error: 'Invalid offset' }, 400);
+    const safeLimit = Math.min(limit, 200);
 
     // Validate sort column
     const validSortColumns = ['published_at', 'scraped_at', 'id'];
@@ -41,7 +53,7 @@ content.get('/', async (c) => {
 
     query += ` ORDER BY c.${sortColumn} ${sortOrder}`;
     query += ` LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    params.push(limit, offset);
+    params.push(safeLimit, offset);
 
     const result = await pool.query(query, params);
 
@@ -59,7 +71,7 @@ content.get('/', async (c) => {
     if (creatorId) {
       countParamCount++;
       countQuery += ` AND creator_id = $${countParamCount}`;
-      countParams.push(parseInt(creatorId));
+      countParams.push(parseInt(creatorId, 10));
     }
 
     const countResult = await pool.query(countQuery, countParams);
@@ -80,7 +92,10 @@ content.get('/', async (c) => {
 // GET /api/content/:id - Get content details with comments
 content.get('/:id', async (c) => {
   try {
-    const id = parseInt(c.req.param('id'));
+    const id = parseInt(c.req.param('id'), 10);
+    if (isNaN(id) || id < 1) {
+      return c.json({ error: 'Invalid content ID' }, 400);
+    }
 
     const contentResult = await pool.query(
       `SELECT c.*, cr.name as creator_name, cr.handle as creator_handle, cr.platform as creator_platform

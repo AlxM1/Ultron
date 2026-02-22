@@ -48,12 +48,32 @@ analysis.get('/performance', async (c) => {
         cr.platform,
         cr.subscriber_count,
         COUNT(c.id) as content_count,
-        AVG((c.metrics->>'views')::int) as avg_views,
-        AVG((c.metrics->>'likes')::int) as avg_likes,
-        MAX(c.published_at) as last_published
+        AVG(
+          CASE
+            WHEN c.metrics IS NULL OR c.metrics->>'views' IS NULL THEN NULL
+            WHEN c.metrics->>'views' ~ '^[0-9]+$' THEN (c.metrics->>'views')::numeric
+            WHEN c.metrics->>'views' ~* '[0-9]+\.?[0-9]*[Kk]' THEN
+              ((regexp_match(c.metrics->>'views', '([0-9]+\.?[0-9]*)[Kk]'))[1]::numeric * 1000)
+            WHEN c.metrics->>'views' ~* '[0-9]+\.?[0-9]*[Mm]' THEN
+              ((regexp_match(c.metrics->>'views', '([0-9]+\.?[0-9]*)[Mm]'))[1]::numeric * 1000000)
+            ELSE NULL
+          END
+        ) as avg_views,
+        AVG(
+          CASE
+            WHEN c.metrics IS NULL OR c.metrics->>'likes' IS NULL THEN NULL
+            WHEN c.metrics->>'likes' ~ '^[0-9]+$' THEN (c.metrics->>'likes')::numeric
+            WHEN c.metrics->>'likes' ~* '[0-9]+\.?[0-9]*[Kk]' THEN
+              ((regexp_match(c.metrics->>'likes', '([0-9]+\.?[0-9]*)[Kk]'))[1]::numeric * 1000)
+            WHEN c.metrics->>'likes' ~* '[0-9]+\.?[0-9]*[Mm]' THEN
+              ((regexp_match(c.metrics->>'likes', '([0-9]+\.?[0-9]*)[Mm]'))[1]::numeric * 1000000)
+            ELSE NULL
+          END
+        ) as avg_likes,
+        MAX(COALESCE(c.published_at, c.scraped_at)) as last_published
       FROM creators cr
       LEFT JOIN content c ON cr.id = c.creator_id 
-        AND c.published_at > NOW() - INTERVAL '${daysBack} days'
+        AND COALESCE(c.published_at, c.scraped_at) > NOW() - INTERVAL '${daysBack} days'
       WHERE 1=1
     `;
 
@@ -96,13 +116,25 @@ analysis.get('/engagement', async (c) => {
         cr.handle as creator_handle,
         (SELECT COUNT(*) FROM comments WHERE content_id = c.id) as comment_count,
         CASE 
-          WHEN c.platform = 'youtube' THEN (c.metrics->>'views')::int
-          WHEN c.platform = 'twitter' THEN (c.metrics->>'likes')::int
+          WHEN c.platform = 'youtube' THEN
+            CASE
+              WHEN c.metrics->>'views' ~ '^[0-9]+$' THEN (c.metrics->>'views')::bigint
+              WHEN c.metrics->>'views' ~* '[0-9]+\.?[0-9]*[Kk]' THEN
+                ((regexp_match(c.metrics->>'views', '([0-9]+\.?[0-9]*)[Kk]'))[1]::numeric * 1000)::bigint
+              WHEN c.metrics->>'views' ~* '[0-9]+\.?[0-9]*[Mm]' THEN
+                ((regexp_match(c.metrics->>'views', '([0-9]+\.?[0-9]*)[Mm]'))[1]::numeric * 1000000)::bigint
+              ELSE 0
+            END
+          WHEN c.platform = 'twitter' THEN
+            CASE
+              WHEN c.metrics->>'likes' ~ '^[0-9]+$' THEN (c.metrics->>'likes')::bigint
+              ELSE 0
+            END
           ELSE 0
         END as engagement_score
       FROM content c
       JOIN creators cr ON c.creator_id = cr.id
-      WHERE c.published_at > NOW() - INTERVAL '${daysBack} days'
+      WHERE COALESCE(c.published_at, c.scraped_at) > NOW() - INTERVAL '${daysBack} days'
     `;
 
     const params = [];

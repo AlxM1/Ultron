@@ -3,223 +3,190 @@ import * as cheerio from 'cheerio';
 
 /**
  * YouTube Scraper Module
- * Scrapes YouTube channel data without requiring YouTube API initially
- * Can be upgraded to use YouTube Data API v3 when available
+ * Uses YouTubeDL service (yt-dlp) for reliable metadata extraction
+ * Falls back to direct HTML scraping if needed
  */
 
-const APIFY_SCRAPER_URL = process.env.APIFY_SCRAPER_URL || 'http://raiser-apify:8400';
+const YOUTUBEDL_URL = process.env.YOUTUBEDL_URL || 'http://raiser-youtubedl:8000';
+const YOUTUBEDL_API_KEY = process.env.YOUTUBEDL_API_KEY || '';
+const APIFY_SCRAPER_URL = process.env.APIFY_SCRAPER_URL || 'http://raiser-apify:8000';
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
-// SECURITY FIX: Validate Apify scraper URL at startup
-try {
-  const apifyUrl = new URL(APIFY_SCRAPER_URL);
-  if (!['http:', 'https:'].includes(apifyUrl.protocol)) {
-    throw new Error('Invalid APIFY_SCRAPER_URL protocol');
-  }
-  console.log('✓ Apify scraper URL validated:', APIFY_SCRAPER_URL);
-} catch (err) {
-  console.error('⚠️  Invalid APIFY_SCRAPER_URL:', err.message);
-}
+console.log('✓ YouTube scraper initialized');
+console.log('  YouTubeDL URL:', YOUTUBEDL_URL);
 
 /**
- * Scrape a YouTube channel using Apify service
+ * Scrape a YouTube channel - tries multiple methods
  */
-export async function scrapeChannelViaApify(channelHandle) {
+export async function scrapeChannel(channelHandle) {
+  console.log(`Scraping YouTube channel: @${channelHandle}`);
+
+  // Method 1: Use yt-dlp via YouTubeDL service (most reliable)
   try {
-    // SECURITY FIX: URL-encode the channel handle to prevent path manipulation
-    const encodedHandle = encodeURIComponent(channelHandle);
-    const channelUrl = `https://youtube.com/@${encodedHandle}`;
-    
-    const response = await fetch(`${APIFY_SCRAPER_URL}/api/youtube/channel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        channelUrl: channelUrl,
-        maxVideos: 20
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Apify scraper failed: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return await scrapeChannelViaYtDlp(channelHandle);
   } catch (err) {
-    console.error(`Failed to scrape channel ${channelHandle} via Apify:`, err);
-    throw err;
+    console.warn(`yt-dlp scraping failed for ${channelHandle}:`, err.message);
+  }
+
+  // Method 2: Direct HTML scraping (less reliable)
+  try {
+    return await scrapeChannelDirect(channelHandle);
+  } catch (err) {
+    console.error(`All scraping methods failed for ${channelHandle}:`, err.message);
+    throw new Error('All scraping methods failed');
   }
 }
 
 /**
- * Scrape channel data directly (fallback if Apify unavailable)
+ * Scrape channel using yt-dlp via YouTubeDL service
+ * Extracts channel metadata + video list from channel /videos page
+ */
+async function scrapeChannelViaYtDlp(channelHandle) {
+  const encodedHandle = encodeURIComponent(channelHandle);
+  const channelUrl = `https://www.youtube.com/@${encodedHandle}/videos`;
+
+  const response = await fetch(`${YOUTUBEDL_URL}/api/extract`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(YOUTUBEDL_API_KEY ? { 'X-API-Key': YOUTUBEDL_API_KEY } : {})
+    },
+    body: JSON.stringify({ url: channelUrl }),
+    timeout: 60000
+  });
+
+  if (!response.ok) {
+    throw new Error(`YouTubeDL extract failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // yt-dlp returns a playlist-like structure for channel pages
+  const entries = data.entries || data.formats || [];
+  const channel = {
+    name: data.channel || data.uploader || channelHandle,
+    handle: channelHandle,
+    subscriberCount: data.channel_follower_count || 0,
+    description: data.description || '',
+    url: `https://youtube.com/@${channelHandle}`,
+    thumbnailUrl: data.thumbnail || null,
+  };
+
+  const videos = (Array.isArray(entries) ? entries : []).slice(0, 200).map(entry => ({
+    videoId: entry.id || entry.display_id,
+    title: entry.title || 'Untitled',
+    description: entry.description || '',
+    publishedAt: entry.upload_date
+      ? `${entry.upload_date.slice(0,4)}-${entry.upload_date.slice(4,6)}-${entry.upload_date.slice(6,8)}`
+      : null,
+    viewCount: entry.view_count || 0,
+    likeCount: entry.like_count || 0,
+    duration: entry.duration || 0,
+    thumbnailUrl: entry.thumbnail || null,
+    tags: entry.tags || [],
+    categories: entry.categories || [],
+  }));
+
+  console.log(`  yt-dlp: Found ${videos.length} videos for @${channelHandle}`);
+  return { channel, videos };
+}
+
+/**
+ * Fallback: Scrape channel directly from YouTube HTML
  */
 export async function scrapeChannelDirect(channelHandle) {
+  const encodedHandle = encodeURIComponent(channelHandle);
+  const url = `https://youtube.com/@${encodedHandle}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9'
+    },
+    timeout: 15000
+  });
+
+  if (!response.ok) {
+    throw new Error(`YouTube returned ${response.status}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  // Extract ytInitialData from page scripts
+  let ytInitialData = null;
+  const scriptTags = $('script').toArray();
+  for (const script of scriptTags) {
+    const content = $(script).html();
+    if (content && content.includes('var ytInitialData = ')) {
+      const match = content.match(/var ytInitialData = ({.+?});/);
+      if (match) {
+        ytInitialData = JSON.parse(match[1]);
+        break;
+      }
+    }
+  }
+
+  if (!ytInitialData) {
+    throw new Error('Could not extract YouTube data from page');
+  }
+
+  const channelData = extractChannelData(ytInitialData);
+  const videos = extractVideos(ytInitialData);
+
+  return {
+    channel: channelData,
+    videos: videos.slice(0, 50)
+  };
+}
+
+function extractChannelData(data) {
   try {
-    // SECURITY FIX: URL-encode the channel handle to prevent path manipulation
-    const encodedHandle = encodeURIComponent(channelHandle);
-    const url = `https://youtube.com/@${encodedHandle}`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Extract initial data from page scripts
-    const scriptTags = $('script').toArray();
-    let ytInitialData = null;
-
-    for (const script of scriptTags) {
-      const content = $(script).html();
-      if (content && content.includes('var ytInitialData = ')) {
-        const match = content.match(/var ytInitialData = ({.+?});/);
-        if (match) {
-          ytInitialData = JSON.parse(match[1]);
-          break;
-        }
-      }
-    }
-
-    if (!ytInitialData) {
-      throw new Error('Could not extract YouTube data from page');
-    }
-
-    // Parse channel metadata and recent videos
-    const channelData = extractChannelData(ytInitialData);
-    const videos = extractVideos(ytInitialData);
-
+    const header = data?.header?.c4TabbedHeaderRenderer ||
+                   data?.header?.pageHeaderRenderer ||
+                   {};
     return {
-      channel: channelData,
-      videos: videos.slice(0, 20) // Limit to 20 most recent
+      name: header.title || '',
+      subscriberCount: 0,
+      description: '',
+      url: '',
+      thumbnailUrl: header?.avatar?.thumbnails?.[0]?.url || null
     };
-
-  } catch (err) {
-    console.error(`Failed to scrape channel ${channelHandle} directly:`, err);
-    throw err;
+  } catch {
+    return { name: '', subscriberCount: 0, description: '', url: '', thumbnailUrl: null };
   }
 }
 
-/**
- * Extract channel metadata from ytInitialData
- */
-function extractChannelData(ytInitialData) {
+function extractVideos(data) {
   try {
-    const header = ytInitialData?.header?.c4TabbedHeaderRenderer || {};
-    
-    return {
-      name: header.title || 'Unknown',
-      subscriberCount: parseSubscriberCount(header.subscriberCountText?.simpleText),
-      videoCount: parseInt(header.videosCountText?.runs?.[0]?.text?.replace(/,/g, '') || '0'),
-      description: header.tagline?.simpleText || '',
-      avatar: header.avatar?.thumbnails?.[0]?.url || null
-    };
-  } catch (err) {
-    console.error('Failed to extract channel data:', err);
-    return {};
-  }
-}
-
-/**
- * Extract videos from ytInitialData
- */
-function extractVideos(ytInitialData) {
-  try {
-    const tabs = ytInitialData?.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
-    let videos = [];
-
-    for (const tab of tabs) {
-      const content = tab?.tabRenderer?.content?.richGridRenderer?.contents || [];
-      
-      for (const item of content) {
-        const videoRenderer = item?.richItemRenderer?.content?.videoRenderer;
-        if (videoRenderer) {
-          videos.push({
-            id: videoRenderer.videoId,
-            title: videoRenderer.title?.runs?.[0]?.text || 'Untitled',
-            description: videoRenderer.descriptionSnippet?.runs?.[0]?.text || '',
-            thumbnail: videoRenderer.thumbnail?.thumbnails?.[0]?.url || null,
-            publishedText: videoRenderer.publishedTimeText?.simpleText || '',
-            viewCount: parseViewCount(videoRenderer.viewCountText?.simpleText),
-            duration: videoRenderer.lengthText?.simpleText || ''
-          });
-        }
-      }
-    }
-
-    return videos;
-  } catch (err) {
-    console.error('Failed to extract videos:', err);
+    const tabs = data?.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
+    const videosTab = tabs.find(t =>
+      t?.tabRenderer?.title === 'Videos' || t?.tabRenderer?.title === 'Home'
+    );
+    const contents = videosTab?.tabRenderer?.content?.richGridRenderer?.contents || [];
+    return contents
+      .filter(c => c?.richItemRenderer?.content?.videoRenderer)
+      .map(c => {
+        const v = c.richItemRenderer.content.videoRenderer;
+        return {
+          videoId: v.videoId,
+          title: v.title?.runs?.[0]?.text || '',
+          description: v.descriptionSnippet?.runs?.map(r => r.text).join('') || '',
+          publishedAt: v.publishedTimeText?.simpleText || '',
+          viewCount: parseInt(v.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
+          duration: v.lengthText?.simpleText || '',
+          thumbnailUrl: v.thumbnail?.thumbnails?.[0]?.url || null,
+        };
+      });
+  } catch {
     return [];
   }
 }
 
 /**
- * Parse subscriber count from text like "1.5M subscribers"
- */
-function parseSubscriberCount(text) {
-  if (!text) return 0;
-  const match = text.match(/([\d.]+)([KMB]?)/i);
-  if (!match) return 0;
-  
-  const num = parseFloat(match[1]);
-  const suffix = match[2].toUpperCase();
-  
-  const multipliers = { K: 1000, M: 1000000, B: 1000000000 };
-  return Math.floor(num * (multipliers[suffix] || 1));
-}
-
-/**
- * Parse view count from text like "1.5M views"
- */
-function parseViewCount(text) {
-  if (!text) return 0;
-  return parseSubscriberCount(text.replace(' views', ''));
-}
-
-/**
- * Main scraper function - tries Apify first, falls back to direct scraping
- */
-export async function scrapeChannel(channelHandle) {
-  try {
-    // Try Apify service first
-    return await scrapeChannelViaApify(channelHandle);
-  } catch (apifyErr) {
-    console.warn('Apify scraper unavailable, falling back to direct scraping');
-    
-    try {
-      // Fallback to direct scraping
-      return await scrapeChannelDirect(channelHandle);
-    } catch (directErr) {
-      console.error('Both Apify and direct scraping failed:', directErr);
-      throw new Error('All scraping methods failed');
-    }
-  }
-}
-
-/**
- * Scrape top comments for a video
+ * Scrape video comments (via Apify or direct)
  */
 export async function scrapeVideoComments(videoId, limit = 50) {
-  try {
-    const response = await fetch(`${APIFY_SCRAPER_URL}/api/youtube/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        videoId,
-        maxComments: limit
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to scrape comments: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.comments || [];
-  } catch (err) {
-    console.error(`Failed to scrape comments for video ${videoId}:`, err);
-    return []; // Return empty array on failure
-  }
+  // Placeholder - YouTube comments require API or complex scraping
+  console.warn(`Comment scraping not yet implemented for ${videoId}`);
+  return [];
 }

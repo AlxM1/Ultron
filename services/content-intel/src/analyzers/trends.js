@@ -131,7 +131,8 @@ function calculateTrendScore(keyword, frequency, contentCount) {
     score *= 1.5;
   }
 
-  return score;
+  // FIX: Cap score to prevent NUMERIC(10,2) overflow
+  return Math.min(score, 9999.99);
 }
 
 /**

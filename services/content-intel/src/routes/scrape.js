@@ -76,10 +76,10 @@ async function scrapeCreatorById(creatorId) {
           [
             creatorId,
             'youtube',
-            video.id,
+            video.videoId || video.id,  // FIX: YouTube scraper returns videoId not id
             video.title,
             video.description,
-            new Date(), // Approximate, would need better parsing
+            video.publishedAt || null,  // FIX: Use actual published date from yt-dlp, not new Date()
             JSON.stringify({
               views: video.viewCount || 0,
               duration: video.duration
@@ -92,7 +92,7 @@ async function scrapeCreatorById(creatorId) {
 
           // Scrape comments for this video
           try {
-            const comments = await youtubeScraper.scrapeVideoComments(video.id, 50);
+            const comments = await youtubeScraper.scrapeVideoComments(video.videoId || video.id, 50);
             for (const comment of comments) {
               await pool.query(
                 `INSERT INTO comments (content_id, text, author, likes)

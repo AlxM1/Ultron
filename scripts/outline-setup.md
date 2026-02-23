@@ -1,4 +1,4 @@
-# Outline (InNotion) Setup Guide
+# INotion Setup Guide (Outline Wiki backend)
 
 ## Access Information
 
@@ -9,7 +9,7 @@
 
 ## Initial Setup Required
 
-Outline requires authentication configuration before use. Choose one option:
+INotion requires authentication configuration before use. Choose one option:
 
 ### Option 1: Email Authentication (Console Mode - Development)
 1. Visit http://localhost:3010
@@ -38,7 +38,7 @@ OIDC_DISPLAY_NAME: Authentik
 Once logged in:
 1. Go to Settings → API Tokens
 2. Click "Create Token"
-3. Give it a name (e.g., "InNotion Automation")
+3. Give it a name (e.g., "INotion Automation")
 4. Copy the token and save it to `~/.openclaw/.innotion-admin-creds`:
    ```bash
    echo "API_TOKEN=outline_xxxxxxxxxxxx" > ~/.openclaw/.innotion-admin-creds

@@ -1,4 +1,4 @@
-# InNotion (Outline) Deployment Summary
+# INotion (Outline) Deployment Summary
 
 **Date:** 2026-02-21  
 **Status:** ✅ Successfully Deployed  
@@ -23,7 +23,7 @@
   - `UTILS_SECRET`: 0d64912f0faf0afa27e644bdb8de4deb44ca9668293ef04d1222e150cfe8fa24
 
 ### 3. Database Initialization ✅
-- Created team: **InNotion** (ID: a0000000-0000-4000-8000-000000000001)
+- Created team: **INotion** (ID: a0000000-0000-4000-8000-000000000001)
 - Created admin user: **admin@00raiser.local** (ID: b0000000-0000-4000-8000-000000000001)
 - Generated API key: `sk-25684e1be71f7ae58ae6ecd1ea1a295f`
 

@@ -30,7 +30,7 @@ export const services: Service[] = [
   },
   {
     id: "innotion",
-    name: "InNotion",
+    name: "INotion",
     icon: "📚",
     url: "https://outline.00raiser.space",
     healthUrl: "http://localhost:3010",

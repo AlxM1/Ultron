@@ -102,3 +102,18 @@ CREATE TRIGGER ideas_updated_at
   BEFORE UPDATE ON ideas
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
+
+-- Transcripts for scraped video content
+CREATE TABLE IF NOT EXISTS transcripts (
+  id SERIAL PRIMARY KEY,
+  content_id INTEGER REFERENCES content(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  language VARCHAR(10) DEFAULT 'en',
+  duration_seconds NUMERIC(10,2),
+  source VARCHAR(50) DEFAULT 'auto',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_transcripts_content ON transcripts(content_id);
+CREATE INDEX IF NOT EXISTS idx_transcripts_language ON transcripts(language);
+CREATE INDEX IF NOT EXISTS idx_transcripts_created ON transcripts(created_at DESC);

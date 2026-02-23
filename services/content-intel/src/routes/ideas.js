@@ -84,14 +84,31 @@ ideas.post('/', async (c) => {
 // PATCH /api/ideas/:id - Update idea status
 ideas.patch('/:id', async (c) => {
   try {
-    const id = parseInt(c.req.param('id'));
-    const { status, score, description } = await c.req.json();
+    const id = parseInt(c.req.param('id'), 10);
+    if (isNaN(id) || id < 1) {
+      return c.json({ error: 'Invalid idea ID' }, 400);
+    }
+    const { title, status, score, description } = await c.req.json();
+
+    const VALID_STATUSES = ['new', 'approved', 'in_production', 'published'];
 
     const updates = [];
     const params = [];
     let paramCount = 0;
 
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length === 0) {
+        return c.json({ error: 'title must be a non-empty string' }, 400);
+      }
+      paramCount++;
+      updates.push(`title = $${paramCount}`);
+      params.push(title.trim());
+    }
+
     if (status) {
+      if (!VALID_STATUSES.includes(status)) {
+        return c.json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` }, 400);
+      }
       paramCount++;
       updates.push(`status = $${paramCount}`);
       params.push(status);

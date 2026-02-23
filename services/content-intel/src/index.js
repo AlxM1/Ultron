@@ -15,6 +15,7 @@ import content from './routes/content.js';
 import trends from './routes/trends.js';
 import ideas from './routes/ideas.js';
 import analysis from './routes/analysis.js';
+import transcripts from './routes/transcripts.js';
 
 const app = new Hono();
 
@@ -114,6 +115,7 @@ app.route('/api/content', content);
 app.route('/api/trends', trends);
 app.route('/api/ideas', ideas);
 app.route('/api/analysis', analysis);
+app.route('/api/transcripts', transcripts);
 
 // Root endpoint
 app.get('/', apiKeyAuth, (c) => {

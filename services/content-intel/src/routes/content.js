@@ -8,9 +8,11 @@ content.get('/', async (c) => {
   try {
     const platform = c.req.query('platform');
     const creatorId = c.req.query('creator_id');
+    const search = c.req.query('search');
     const limit = parseInt(c.req.query('limit') || '50');
     const offset = parseInt(c.req.query('offset') || '0');
-    const sortBy = c.req.query('sort_by') || 'published_at';
+    // Accept both 'sort_by' and 'sort' as aliases
+    const sortBy = c.req.query('sort_by') || c.req.query('sort') || 'published_at';
     const order = c.req.query('order') || 'DESC';
 
     let query = `
@@ -41,13 +43,19 @@ content.get('/', async (c) => {
       params.push(parsedCreatorId);
     }
 
+    if (search && search.trim().length > 0) {
+      paramCount++;
+      query += ` AND (c.title ILIKE $${paramCount} OR c.description ILIKE $${paramCount})`;
+      params.push(`%${search.trim()}%`);
+    }
+
     // Validate and cap limit/offset
     if (isNaN(limit) || limit < 1) return c.json({ error: 'Invalid limit' }, 400);
     if (isNaN(offset) || offset < 0) return c.json({ error: 'Invalid offset' }, 400);
     const safeLimit = Math.min(limit, 200);
 
-    // Validate sort column
-    const validSortColumns = ['published_at', 'scraped_at', 'id'];
+    // Validate sort column — also support 'views' mapped to metrics->views
+    const validSortColumns = ['published_at', 'scraped_at', 'id', 'title'];
     const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'published_at';
     const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
@@ -57,21 +65,32 @@ content.get('/', async (c) => {
 
     const result = await pool.query(query, params);
 
-    // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM content WHERE 1=1';
+    // Get total count (reuse same filters)
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM content c
+      JOIN creators cr ON c.creator_id = cr.id
+      WHERE 1=1
+    `;
     const countParams = [];
     let countParamCount = 0;
 
     if (platform) {
       countParamCount++;
-      countQuery += ` AND platform = $${countParamCount}`;
+      countQuery += ` AND c.platform = $${countParamCount}`;
       countParams.push(platform);
     }
 
     if (creatorId) {
       countParamCount++;
-      countQuery += ` AND creator_id = $${countParamCount}`;
+      countQuery += ` AND c.creator_id = $${countParamCount}`;
       countParams.push(parseInt(creatorId, 10));
+    }
+
+    if (search && search.trim().length > 0) {
+      countParamCount++;
+      countQuery += ` AND (c.title ILIKE $${countParamCount} OR c.description ILIKE $${countParamCount})`;
+      countParams.push(`%${search.trim()}%`);
     }
 
     const countResult = await pool.query(countQuery, countParams);

@@ -191,7 +191,9 @@ tasks.patch('/:id', async (c) => {
  */
 tasks.get('/', async (c) => {
   try {
-    const { service, status, limit = '50', offset = '0' } = c.req.query();
+    // Accept both 'service' and 'service_name' as aliases for the service filter
+    const { service, service_name, status, limit = '50', offset = '0' } = c.req.query();
+    const serviceFilter = service_name || service;
 
     // Validate and clamp limit and offset
     let limitNum = parseInt(limit, 10);
@@ -215,9 +217,9 @@ tasks.get('/', async (c) => {
     const values = [];
     let paramIndex = 1;
 
-    if (service) {
+    if (serviceFilter) {
       conditions.push(`service_name = $${paramIndex++}`);
-      values.push(service);
+      values.push(serviceFilter);
     }
 
     if (status) {

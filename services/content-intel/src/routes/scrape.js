@@ -9,6 +9,58 @@ const scrape = new Hono();
 // SECURITY FIX: Apply strict rate limiting to all scrape endpoints
 scrape.use('/*', scrapeRateLimit);
 
+// POST /api/scrape/all - Scrape all tracked creators
+// NOTE: This route MUST be defined before /:creatorId to prevent "all" being parsed as a creatorId
+scrape.post('/all', async (c) => {
+  try {
+    const result = await pool.query('SELECT * FROM creators ORDER BY id');
+    const creators = result.rows;
+
+    const results = {
+      total: creators.length,
+      successful: 0,
+      failed: 0,
+      details: []
+    };
+
+    for (const creator of creators) {
+      try {
+        // Call scrape function directly instead of making HTTP request to self
+        // SECURITY FIX: Eliminates SSRF and prevents API key leakage in self-requests
+        const data = await scrapeCreatorById(creator.id);
+        results.successful++;
+        results.details.push({
+          creator: creator.name,
+          platform: creator.platform,
+          status: 'success',
+          ...data
+        });
+      } catch (err) {
+        results.failed++;
+        results.details.push({
+          creator: creator.name,
+          platform: creator.platform,
+          status: 'failed',
+          error: err.message
+        });
+      }
+
+      // Small delay to avoid overwhelming services
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    return c.json(results);
+
+  } catch (err) {
+    console.error('Error scraping all creators:', err);
+    // SECURITY FIX: Don't leak error details in production
+    return c.json({ 
+      error: 'Failed to scrape creators',
+      details: process.env.NODE_ENV === 'production' ? undefined : err.message
+    }, 500);
+  }
+});
+
 // POST /api/scrape/:creatorId - Trigger manual scrape for a specific creator
 scrape.post('/:creatorId', async (c) => {
   const creatorId = parseInt(c.req.param('creatorId'));
@@ -161,56 +213,5 @@ async function scrapeCreatorById(creatorId) {
     commentsInserted
   };
 }
-
-// POST /api/scrape/all - Scrape all tracked creators
-scrape.post('/all', async (c) => {
-  try {
-    const result = await pool.query('SELECT * FROM creators ORDER BY id');
-    const creators = result.rows;
-
-    const results = {
-      total: creators.length,
-      successful: 0,
-      failed: 0,
-      details: []
-    };
-
-    for (const creator of creators) {
-      try {
-        // Call scrape function directly instead of making HTTP request to self
-        // SECURITY FIX: Eliminates SSRF and prevents API key leakage in self-requests
-        const data = await scrapeCreatorById(creator.id);
-        results.successful++;
-        results.details.push({
-          creator: creator.name,
-          platform: creator.platform,
-          status: 'success',
-          ...data
-        });
-      } catch (err) {
-        results.failed++;
-        results.details.push({
-          creator: creator.name,
-          platform: creator.platform,
-          status: 'failed',
-          error: err.message
-        });
-      }
-
-      // Small delay to avoid overwhelming services
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    return c.json(results);
-
-  } catch (err) {
-    console.error('Error scraping all creators:', err);
-    // SECURITY FIX: Don't leak error details in production
-    return c.json({ 
-      error: 'Failed to scrape creators',
-      details: process.env.NODE_ENV === 'production' ? undefined : err.message
-    }, 500);
-  }
-});
 
 export default scrape;

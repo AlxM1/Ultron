@@ -1,31 +1,4 @@
-# =============================================================================
-# 00raiser — Consolidated Docker Compose
-# =============================================================================
-# All services on a single shared PostgreSQL + Redis backbone.
-#
-# Quick start:
-#   1. cp .env.example .env && $EDITOR .env  (fill in secrets)
-#   2. docker compose up -d postgres redis
-#   3. docker compose up -d                  (everything else)
-#
-# Port map (host):
-#   5432  PostgreSQL          9000/9443  Authentik
-#   6379  Redis               4000  AgentSmith API
-#   3000  AgentSmith UI       3001  AgentSmith Admin
-#   3010  AFFiNE              3011  Agent Task Bridge
-#   3100  Krya                8100  VoiceForge
-#   8200  YouTubeDL           8766  WhisperFlow
-#   3020  Portal (00raiser OS) 8300  Newsletter Pipeline
-#   8400  Apify Scraper       8500  Persona Pipeline
-#   3015  Content Intel
-# =============================================================================
-
 services:
-
-  # ===========================================================================
-  # CORE INFRASTRUCTURE
-  # ===========================================================================
-
   postgres:
     image: postgres:16-alpine
     container_name: raiser-postgres
@@ -33,7 +6,6 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      # Per-service passwords passed to init-databases.sh
       AUTHENTIK_DB_PASSWORD: ${AUTHENTIK_DB_PASSWORD}
       AGENTSMITH_DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
       KRYA_DB_PASSWORD: ${KRYA_DB_PASSWORD}
@@ -45,47 +17,72 @@ services:
       CORTEX_DB_PASSWORD: ${CORTEX_DB_PASSWORD}
       CONTENT_INTEL_DB_PASSWORD: ${CONTENT_INTEL_DB_PASSWORD}
     ports:
-      - "127.0.0.1:5432:5432"
+    - 127.0.0.1:5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    - postgres_data:/var/lib/postgresql/data
+    - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-postgres}
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
-      - raiser-net
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    cap_add:
+    - CHOWN
+    - DAC_OVERRIDE
+    - FOWNER
+    - SETGID
+    - SETUID
+    deploy:
+      resources:
+        limits:
+          memory: 2g
   redis:
     image: redis:7-alpine
     container_name: raiser-redis
     restart: unless-stopped
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 1gb
-      --maxmemory-policy noeviction
-      --requirepass ${REDIS_PASSWORD}
+    command: 'redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD}
+
+      '
     ports:
-      - "127.0.0.1:6379:6379"
+    - 127.0.0.1:6379:6379
     volumes:
-      - redis_data:/data
+    - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - -a
+      - ${REDIS_PASSWORD}
+      - ping
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # AUTHENTIK — SSO / Identity Provider
-  # ===========================================================================
-
+    - raiser-net
+    security_opt: []
+    cap_drop:
+    - ALL
+    cap_add:
+    - SETGID
+    - SETUID
+    - CHOWN
+    - DAC_OVERRIDE
+    - FOWNER
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
   authentik-server:
-    image: ghcr.io/goauthentik/server:2024.12
+    image: ghcr.io/goauthentik/server:2025.2
     container_name: raiser-authentik-server
     restart: unless-stopped
     command: server
@@ -100,23 +97,30 @@ services:
       AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-}
+      AUTHENTIK_HOST: "https://auth.00raiser.space"
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9443:9443"
+    - 0.0.0.0:9000:9000
+    - 0.0.0.0:9443:9443
     volumes:
-      - authentik_media:/media
-      - authentik_templates:/templates
-      - /var/run/docker.sock:/var/run/docker.sock
+    - authentik_media:/media
+    - authentik_templates:/templates
+    - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
+    - raiser-net
+    security_opt: []
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2024.12
+    image: ghcr.io/goauthentik/server:2025.2
     container_name: raiser-authentik-worker
     restart: unless-stopped
     command: worker
@@ -130,24 +134,24 @@ services:
       AUTHENTIK_POSTGRESQL__USER: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD}
     volumes:
-      - authentik_media:/media
-      - authentik_templates:/templates
-      - authentik_certs:/certs
-      - /var/run/docker.sock:/var/run/docker.sock
+    - authentik_media:/media
+    - authentik_templates:/templates
+    - authentik_certs:/certs
+    - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # AGENTSMITH — Automation Platform
-  # ===========================================================================
-  # Build context: services/agentsmith (npm workspaces monorepo)
-  # Dockerfiles verified at: docker/Dockerfile.{backend,frontend,admin,worker}
-
+    - raiser-net
+    security_opt: []
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   agentsmith-backend:
     build:
       context: ./services/agentsmith
@@ -157,57 +161,68 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      # Database (verified from docker-compose.production.yml)
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_DATABASE: agentsmith
+      DB_DATABASE: raiser
       DB_USERNAME: agentsmith
       DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
-      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # Security (verified from .env.example)
       JWT_SECRET: ${AGENTSMITH_JWT_SECRET}
       JWT_REFRESH_SECRET: ${AGENTSMITH_JWT_REFRESH_SECRET}
       ENCRYPTION_KEY: ${AGENTSMITH_ENCRYPTION_KEY}
       SESSION_SECRET: ${AGENTSMITH_SESSION_SECRET}
-      # URLs
       APP_URL: ${AGENTSMITH_APP_URL:-http://localhost:3000}
       API_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}
       WEBHOOK_URL: ${AGENTSMITH_API_URL:-http://localhost:4000}/webhooks
-      CORS_ORIGIN: ${AGENTSMITH_CORS_ORIGIN:-http://localhost:3000,http://localhost:3001}
-      # SSO (optional)
-      SSO_ENABLED: ${AGENTSMITH_SSO_ENABLED:-false}
+      WEBHOOK_API_KEY: ${WEBHOOK_API_KEY:-}
+      CORS_ORIGIN: ${AGENTSMITH_CORS_ORIGIN:-http://localhost:3000,http://localhost:3001,http://localhost:3020}
+      SSO_ENABLED: "true"
       GOOGLE_CLIENT_ID: ${AGENTSMITH_GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${AGENTSMITH_GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${AGENTSMITH_GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${AGENTSMITH_GITHUB_CLIENT_SECRET:-}
-      # Email (optional)
+      # Authentik OIDC SSO
+      SSO_OIDC_ENABLED: "true"
+      SSO_OIDC_NAME: "Authentik"
+      SSO_OIDC_CLIENT_ID: "38d07f506a5f5e4e9895e382241dcb58e1f44018"
+      SSO_OIDC_CLIENT_SECRET: ${AGENTSMITH_OIDC_CLIENT_SECRET}
+      SSO_OIDC_ISSUER: "https://auth.00raiser.space/"
+      SSO_OIDC_AUTH_URL: "https://auth.00raiser.space/application/o/authorize/"
+      SSO_OIDC_TOKEN_URL: "http://raiser-authentik-server:9000/application/o/token/"
+      SSO_OIDC_USERINFO_URL: "http://raiser-authentik-server:9000/application/o/userinfo/"
+      SSO_OIDC_JWKS_URI: "http://raiser-authentik-server:9000/application/o/agentsmith/jwks/"
+      SSO_OIDC_CALLBACK_URL: "https://smith.00raiser.space/api/v1/auth/sso/oidc/callback"
+      SSO_OIDC_SCOPES: "openid,email,profile"
       SMTP_ENABLED: ${AGENTSMITH_SMTP_ENABLED:-false}
       SMTP_HOST: ${AGENTSMITH_SMTP_HOST:-}
       SMTP_PORT: ${AGENTSMITH_SMTP_PORT:-587}
       SMTP_USER: ${AGENTSMITH_SMTP_USER:-}
       SMTP_PASS: ${AGENTSMITH_SMTP_PASSWORD:-}
       SMTP_FROM: ${AGENTSMITH_SMTP_FROM:-noreply@agentsmith.local}
-      # AI (optional)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      # Logging
       LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
-      - "127.0.0.1:4000:4000"
+    - 0.0.0.0:4000:4000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   agentsmith-worker:
     build:
       context: ./services/agentsmith
@@ -216,23 +231,22 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      # Database
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_DATABASE: agentsmith
+      DB_DATABASE: raiser
       DB_USERNAME: agentsmith
       DB_PASSWORD: ${AGENTSMITH_DB_PASSWORD}
-      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # Security
       ENCRYPTION_KEY: ${AGENTSMITH_ENCRYPTION_KEY}
-      # Worker (verified from docker-compose.production.yml)
       WORKER_CONCURRENCY: ${AGENTSMITH_WORKER_CONCURRENCY:-5}
       EXECUTION_TIMEOUT: 3600000
       LOG_LEVEL: ${AGENTSMITH_LOG_LEVEL:-info}
       TASK_BRIDGE_URL: http://raiser-cortex:3011
+      TASK_BRIDGE_API_KEY: ${CORTEX_API_KEY}
+      CONTENT_INTEL_URL: http://raiser-content-intel:3015
+      CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -241,8 +255,15 @@ services:
       agentsmith-backend:
         condition: service_healthy
     networks:
-      - raiser-net
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   agentsmith-frontend:
     build:
       context: ./services/agentsmith
@@ -253,13 +274,26 @@ services:
     container_name: raiser-agentsmith-frontend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+    - 0.0.0.0:3000:3000
     depends_on:
       agentsmith-backend:
         condition: service_healthy
     networks:
-      - raiser-net
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    cap_add:
+    - CHOWN
+    - DAC_OVERRIDE
+    - SETGID
+    - SETUID
+    - NET_BIND_SERVICE
   agentsmith-admin:
     build:
       context: ./services/agentsmith
@@ -269,19 +303,26 @@ services:
     container_name: raiser-agentsmith-admin
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3001:3001"
+    - 0.0.0.0:3001:3001
     depends_on:
       agentsmith-backend:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # KRYA — AI Creative Platform (Next.js + Prisma)
-  # ===========================================================================
-  # Build context: services/krya — Dockerfile at apps/web/Dockerfile
-  # Remapped to host port 3100 (container still listens on 3000)
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    cap_add:
+    - CHOWN
+    - DAC_OVERRIDE
+    - SETGID
+    - SETUID
+    - NET_BIND_SERVICE
   krya:
     build:
       context: ./services/krya
@@ -290,22 +331,18 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      # Database
       DB_HOST: postgres
-      DB_PORT: "5432"
+      DB_PORT: '5432'
       DB_USER: krya
       DB_PASSWORD: ${KRYA_DB_PASSWORD}
       DB_NAME: krya
       DATABASE_URL: postgresql://krya:${KRYA_DB_PASSWORD}@postgres:5432/krya
-      # Redis (DB 1 — isolated from other services)
       REDIS_HOST: redis
-      REDIS_PORT: "6379"
+      REDIS_PORT: '6379'
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: "1"
-      # App URLs
+      REDIS_DB: '1'
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://krya.00raiser.space}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://krya.00raiser.space}
-      # AI providers
       FAL_KEY: ${FAL_KEY:-}
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
       TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
@@ -313,11 +350,8 @@ services:
       GOOGLE_AI_API_KEY: ${KRYA_GOOGLE_AI_API_KEY:-}
       GOOGLE_IMAGE_MODEL: ${GOOGLE_IMAGE_MODEL:-imagen-4.0-generate-preview-05-20}
       GOOGLE_VIDEO_MODEL: ${GOOGLE_VIDEO_MODEL:-veo-3.0-generate-preview}
-      # NVIDIA NIM (Primary AI Provider)
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
-      # Hugging Face
       HF_TOKEN: ${HF_TOKEN:-}
-      # Local AI / GPU Server (optional)
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
       COMFYUI_HOST: ${COMFYUI_HOST:-}
@@ -327,38 +361,42 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_URL: ${OLLAMA_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-      # Storage (local filesystem)
       UPLOAD_DIR: /app/uploads
-      # Payments (optional)
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
+      # Authentik OIDC SSO (Krya uses forward-auth headers; OIDC vars stored for reference/future)
+      OIDC_CLIENT_ID: "9e888a8e609c7e3d026f0f65e4b8c1231597da28"
+      OIDC_CLIENT_SECRET: ${KRYA_OIDC_CLIENT_SECRET}
+      OIDC_ISSUER_URL: "https://auth.00raiser.space/application/o/krya/"
     ports:
-      - "127.0.0.1:3100:3000"
+    - 0.0.0.0:3100:3000
     volumes:
-      - /mnt/data/00raiser/media/krya:/app/uploads
+    - /mnt/data/00raiser/media/krya:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test:
+      - CMD-SHELL
+      - node -e "require('http').get('http://127.0.0.1:3000/',r=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # APIFY SCRAPER — Multi-Platform Web Scraping Service
-  # ===========================================================================
-  # Build context: services/apify (Next.js + Crawlee + Playwright)
-  # Supports YouTube, Reddit, Instagram, TikTok, Twitter, Google Maps, etc.
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   apify:
     build:
       context: ./services/apify
@@ -367,39 +405,35 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: 8400
-      # Database
+      PORT: '8000'
       DATABASE_URL: postgresql+asyncpg://scraper:${SCRAPER_DB_PASSWORD}@postgres:5432/scraper
-      # Redis (DB 2 — isolated from other services)
       REDIS_HOST: redis
-      REDIS_PORT: "6379"
+      REDIS_PORT: '6379'
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: "2"
-      # Storage
+      REDIS_DB: '2'
       UPLOAD_DIR: /app/uploads
       MEDIA_PATH: /app/uploads
-      # Proxies (optional)
       WEBSHARE_API_KEY: ${WEBSHARE_API_KEY:-}
       SCRAPERAPI_KEY: ${SCRAPERAPI_KEY:-}
       SCRAPINGBEE_KEY: ${SCRAPINGBEE_KEY:-}
-      # Platform APIs (optional)
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
       REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
-      # Instagram (required for Instagram scraping via instagrapi)
       INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME:-}
       INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD:-}
       INSTAGRAM_PROXY: ${INSTAGRAM_PROXY:-}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
-      - "127.0.0.1:8400:8400"
+    - 0.0.0.0:8400:8000
     volumes:
-      - /mnt/data/00raiser/media/apify:/app/uploads
-      - /mnt/data/00raiser/media/scraper:/mnt/data/00raiser/media/scraper
+    - /mnt/data/00raiser/media/apify:/app/uploads
+    - /mnt/data/00raiser/media/scraper:/mnt/data/00raiser/media/scraper
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8400/health"]
+      test:
+      - CMD-SHELL
+      - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/auth/status', timeout=5)" ||
+        exit 1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -410,15 +444,15 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # VOICEFORGE — Voice & Avatar Platform (FastAPI + CUDA)
-  # ===========================================================================
-  # Build context: services/voiceforge/voiceforge
-  # Dockerfile at: docker/Dockerfile.backend (nvidia/cuda:12.1 base)
-  # Set VOICEFORGE_DEVICE=cuda and add deploy.resources for GPU usage
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   voiceforge:
     build:
       context: ./services/voiceforge/voiceforge
@@ -426,58 +460,49 @@ services:
     container_name: raiser-voiceforge
     restart: unless-stopped
     environment:
-      # Verified from .env.example and docker-compose.yml
       APP_NAME: voiceforge
-      DEBUG: "false"
+      DEBUG: 'false'
       SECRET_KEY: ${VOICEFORGE_SECRET_KEY}
       HOST: 0.0.0.0
       PORT: 8000
-      # Database (asyncpg — matches voiceforge docker-compose)
       DATABASE_URL: postgresql+asyncpg://voiceforge:${VOICEFORGE_DB_PASSWORD}@postgres:5432/voiceforge
-      # Redis (DB 3 — 0=Authentik, 1=Krya, 2=Apify, 3=VoiceForge, 4=AFFiNE)
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: 3
-      # Storage
       STORAGE_TYPE: local
       STORAGE_PATH: /app/storage
-      # Device — set to 'cuda' if GPU available
       DEVICE: ${VOICEFORGE_DEVICE:-cpu}
-      # GPU Server (optional)
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-      # NVIDIA NIM & Hugging Face
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
-      # CORS
       CORS_ORIGINS: '["http://localhost:8100"]'
-      # Fix numba/librosa JIT cache + matplotlib cache
       NUMBA_CACHE_DIR: /tmp/numba_cache
       MPLCONFIGDIR: /tmp/matplotlib
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
-      - "127.0.0.1:8100:8000"
+    - 0.0.0.0:8100:8000
     volumes:
-      - voiceforge_storage:/app/storage
-      - voiceforge_models:/home/voiceforge/.cache
+    - voiceforge_storage:/app/storage
+    - voiceforge_models:/home/voiceforge/.cache
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # YOUTUBEDL — Video Downloader (Python, migrated to PostgreSQL)
-  # ===========================================================================
-  # Build context: services/youtubedl — Dockerfile at root
-  # DATABASE_URL switched from sqlite to postgresql+asyncpg per plan
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 2g
   youtubedl:
     build:
       context: ./services/youtubedl
@@ -485,37 +510,37 @@ services:
     container_name: raiser-youtubedl
     restart: unless-stopped
     environment:
-      # Verified from config.py
       HOST: 0.0.0.0
       PORT: 8000
       DOWNLOAD_DIR: /app/downloads
-      # Migrated from SQLite -> PostgreSQL (asyncpg driver as requested)
-      DATABASE_URL: postgresql+asyncpg://youtubedl:${YOUTUBEDL_DB_PASSWORD}@postgres:5432/youtubedl
+      DATABASE_URL: postgresql+asyncpg://youtubedl:${YOUTUBEDL_DB_PASSWORD}@postgres:5432/raiser
       MAX_CONCURRENT_DOWNLOADS: ${YOUTUBEDL_MAX_CONCURRENT:-3}
       EXTRACT_RATE_LIMIT: ${YOUTUBEDL_EXTRACT_RATE_LIMIT:-10}
       MIN_FREE_DISK_MB: ${YOUTUBEDL_MIN_FREE_DISK_MB:-500}
       API_KEY: ${YOUTUBEDL_API_KEY:-}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
+      CORTEX_URL: http://raiser-cortex:3011
+      CORTEX_API_KEY: ${CORTEX_API_KEY}
     ports:
-      - "127.0.0.1:8200:8000"
+    - 0.0.0.0:8200:8000
     volumes:
-      - youtubedl_downloads:/app/downloads
-      - youtubedl_data:/app/data
+    - youtubedl_downloads:/app/downloads
+    - youtubedl_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # WHISPERFLOW — Transcription Service (Python)
-  # ===========================================================================
-  # Build context: services/whisperflow — Dockerfile at root
-  # Configured to use Windows PC GPU server for transcription
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   whisperflow:
     build:
       context: ./services/whisperflow
@@ -523,29 +548,28 @@ services:
     container_name: raiser-whisperflow
     restart: unless-stopped
     environment:
-      # Verified from deploy/docker-compose.yml and config.py
       WHISPERFLOW_API_KEY: ${WHISPERFLOW_API_KEY:-}
       WHISPERFLOW_DATA_DIR: /data
-      WHISPERFLOW_PROXY_HEADERS: "1"
+      WHISPERFLOW_PROXY_HEADERS: '1'
       WHISPERFLOW_ALLOWED_ORIGINS: ${WHISPERFLOW_ALLOWED_ORIGINS:-}
-      # Point to Windows PC GPU server for faster-whisper
       WHISPERFLOW_REMOTE_HOST: ${WINDOWS_PC_IP:-192.168.1.100}
-      WHISPERFLOW_REMOTE_PORT: "8765"
-      # GPU Server (optional)
+      WHISPERFLOW_REMOTE_PORT: '8765'
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-      # NVIDIA NIM & Hugging Face
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
-      - "127.0.0.1:8766:8766"
+    - 0.0.0.0:8766:8766
     volumes:
-      - whisperflow_data:/data
+    - whisperflow_data:/data
+    - ./services/whisperflow/config:/usr/local/lib/python3.11/site-packages/config:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8766/health"]
+      test:
+      - CMD-SHELL
+      - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8766/api/health', timeout=5)" || exit
+        1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -556,16 +580,15 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # NEWSLETTER PIPELINE — Video Newsletter API Gateway (Python FastAPI)
-  # ===========================================================================
-  # Build context: services/newsletter/newsletter-video-pipeline
-  # This is the api-gateway entry point for the pipeline.
-  # Remaining newsletter microservices can be started from the service's own
-  # docker-compose.yml if the full pipeline is needed.
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 2g
   newsletter-pipeline:
     build:
       context: ./services/newsletter/newsletter-video-pipeline
@@ -573,22 +596,17 @@ services:
     container_name: raiser-newsletter-pipeline
     restart: unless-stopped
     environment:
-      # Verified from .env.example and docker-compose.yml
       ENVIRONMENT: production
       API_HOST: 0.0.0.0
       API_PORT: 8000
       API_KEY: ${NVP_API_KEY}
       SECRET_KEY: ${NVP_SECRET_KEY}
       LOG_LEVEL: INFO
-      # Database (asyncpg — verified from docker-compose)
       DATABASE_URL: postgresql+asyncpg://nvp:${NVP_DB_PASSWORD}@postgres:5432/newsletter_pipeline
-      # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
-      # GPU server on Windows PC
       GPU_HOST: ${WINDOWS_PC_IP:-192.168.1.100}
       VOICE_CLONER_URL: http://${WINDOWS_PC_IP:-192.168.1.100}:${NVP_GPU_VOICE_PORT:-5002}
       AVATAR_GENERATOR_URL: http://${WINDOWS_PC_IP:-192.168.1.100}:${NVP_GPU_AVATAR_PORT:-5003}
-      # LLM / GPU Server
       LLM_PROVIDER: ${NVP_LLM_PROVIDER:-local}
       LLM_MODEL: ${NVP_LLM_MODEL:-qwen2.5:7b}
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
@@ -598,94 +616,87 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-      # NVIDIA NIM & Hugging Face
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
-      # Task Bridge
       TASK_BRIDGE_URL: http://raiser-cortex:3011
     ports:
-      - "127.0.0.1:8300:8000"
+    - 0.0.0.0:8300:8000
     volumes:
-      - nvp_data:/app/data
-      - nvp_logs:/app/logs
+    - nvp_data:/app/data
+    - nvp_logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # AFFINE — Notes / Workspace (self-hosted Notion alternative)
-  # ===========================================================================
-  # Image: ghcr.io/toeverything/affine:stable
-  # Redis DB 4 (0=Authentik, 1=Krya, 2=Apify, 3=Newsletter)
-  # Migration job runs predeploy script before main service starts.
-
-  affine-migration:
-    image: ghcr.io/toeverything/affine:stable
-    container_name: raiser-affine-migration
-    command: ["sh", "-c", "node ./scripts/self-host-predeploy.js"]
-    environment:
-      NODE_ENV: production
-      AFFINE_SERVER_PORT: "3010"
-      AFFINE_SERVER_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://affine:${AFFINE_DB_PASSWORD}@postgres:5432/affine
-      REDIS_SERVER_HOST: redis
-      REDIS_SERVER_PORT: "6379"
-      REDIS_SERVER_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SERVER_DATABASE: "4"
-      AFFINE_INDEXER_ENABLED: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - raiser-net
-
-  affine:
-    image: ghcr.io/toeverything/affine:stable
-    container_name: raiser-affine
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+  outline:
+    image: docker.getoutline.com/outlinewiki/outline:latest
+    container_name: raiser-outline
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      AFFINE_SERVER_PORT: "3010"
-      AFFINE_SERVER_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://affine:${AFFINE_DB_PASSWORD}@postgres:5432/affine
-      REDIS_SERVER_HOST: redis
-      REDIS_SERVER_PORT: "6379"
-      REDIS_SERVER_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SERVER_DATABASE: "4"
-      AFFINE_INDEXER_ENABLED: "false"
+      - NODE_ENV=production
+      - SECRET_KEY=3c2b9de2f61641380d6d9723bf23eb0c97211ea02a4b556d74fffe9fca03284f
+      - UTILS_SECRET=0d64912f0faf0afa27e644bdb8de4deb44ca9668293ef04d1222e150cfe8fa24
+      - DATABASE_URL=postgres://outline:outline@postgres:5432/outline
+      - REDIS_URL=redis://:bdbb389a97194f746efdd37bafdc46f9fe557777d492d2a1@redis:6379
+      - URL=http://localhost:3010
+      - PORT=3000
+      - FILE_STORAGE=local
+      - FILE_STORAGE_LOCAL_ROOT_DIR=/var/lib/outline/data
+      - FORCE_HTTPS=false
+      - ENABLE_UPDATES=false
+      - PGSSLMODE=disable
+      - SMTP_HOST=console
+      - SMTP_PORT=587
+      - SMTP_FROM_EMAIL=outline@00raiser.local
+      - DEFAULT_LANGUAGE=en_US
+      - ALLOWED_DOMAINS=
+      # Authentik OIDC SSO
+      - OIDC_CLIENT_ID=b453a55738707e163a8196184ae2ff64af7adea9
+      - OIDC_CLIENT_SECRET=${OUTLINE_OIDC_CLIENT_SECRET}
+      - OIDC_AUTH_URI=https://auth.00raiser.space/application/o/authorize/
+      - OIDC_TOKEN_URI=http://raiser-authentik-server:9000/application/o/token/
+      - OIDC_USERINFO_URI=http://raiser-authentik-server:9000/application/o/userinfo/
+      - OIDC_DISPLAY_NAME=Authentik
+      - OIDC_SCOPES=openid profile email
+      - OIDC_USERNAME_CLAIM=email
     ports:
-      - "127.0.0.1:3010:3010"
+    - 0.0.0.0:3010:3000
     volumes:
-      - /mnt/data/00raiser/services/affine/storage:/root/.affine/storage
-      - /mnt/data/00raiser/services/affine/config:/root/.affine/config
+    - outline_data:/var/lib/outline/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3010/api/health"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3000/ || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     depends_on:
-      affine-migration:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # CORTEX — Activity Tracking & Monitoring
-  # ===========================================================================
-  # REST API for tracking task activity across all 00raiser services.
-  # Build context: services/cortex (Node.js + Hono + pg)
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
   cortex:
     build:
       context: ./services/cortex
@@ -694,13 +705,15 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: "3011"
-      DATABASE_URL: postgresql://agent_bridge:${CORTEX_DB_PASSWORD}@postgres:5432/agent_tasks
+      PORT: '3011'
+      DATABASE_URL: postgresql://agent_bridge:${CORTEX_DB_PASSWORD}@postgres:5432/raiser
       CORTEX_API_KEY: ${CORTEX_API_KEY}
     ports:
-      - "127.0.0.1:3011:3011"
+    - 0.0.0.0:3011:3011
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3011/health || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -709,14 +722,15 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # PERSONA PIPELINE — Content Scraping → Persona Agent Generator
-  # ===========================================================================
-  # Scrapes YouTube/Twitter, transcribes, analyzes personality via LLM,
-  # creates persona sub-agents for chat and script generation.
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 512m
   persona-pipeline:
     build:
       context: ./services/persona-pipeline
@@ -724,30 +738,41 @@ services:
     container_name: raiser-persona-pipeline
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://agentsmith:${AGENTSMITH_DB_PASSWORD}@postgres:5432/agentsmith
+      DATABASE_URL: postgresql+asyncpg://agentsmith:${AGENTSMITH_DB_PASSWORD}@postgres:5432/raiser
       YOUTUBEDL_URL: http://raiser-youtubedl:8000
-      APIFY_URL: http://raiser-apify:8400
+      YOUTUBEDL_API_KEY: ${YOUTUBEDL_API_KEY}
+      APIFY_URL: http://raiser-apify:8000
       WHISPERFLOW_GPU_URL: http://10.25.10.60:8765
       OLLAMA_URL: http://10.25.10.60:11434
       DEFAULT_LLM_MODEL: llama3.2
-      MAX_VIDEOS_DEFAULT: "50"
-      REFRESH_CRON: "0 3 * * 0"   # Sunday 3 AM UTC
+      MAX_VIDEOS_DEFAULT: '50'
+      REFRESH_CRON: 0 3 * * 0
+      PERSONA_API_KEY: ${PERSONA_API_KEY}
     ports:
-      - "127.0.0.1:8500:8500"
+    - 0.0.0.0:8500:8500
     volumes:
-      - persona_data:/app/data
+    - persona_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # PORTAL — 00raiser OS Unified Portal
-  # ===========================================================================
-  # macOS-inspired workspace that embeds all services via iframes.
-  # Build context: services/portal (Next.js standalone)
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://127.0.0.1:8500/docs || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
   portal:
     build:
       context: ./services/portal
@@ -756,10 +781,9 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: "3020"
+      PORT: '3020'
       NEXT_PUBLIC_TASK_BRIDGE_URL: https://tasks.00raiser.space
       TASK_BRIDGE_URL: http://raiser-cortex:3011
-      # Voice AI
       WHISPERFLOW_URL: http://raiser-whisperflow:8766
       VOICEFORGE_URL: http://raiser-voiceforge:8000
       VOICEFORGE_API_KEY: ${VOICEFORGE_API_KEY}
@@ -772,24 +796,39 @@ services:
       GROK_API_KEY: ${GROK_API_KEY:-}
       KRYA_URL: http://raiser-krya:3000
       YOUTUBEDL_URL: http://raiser-youtubedl:8000
-      SCRAPER_URL: http://raiser-apify:8400
+      SCRAPER_URL: http://raiser-apify:8000
+      CORTEX_INTERNAL_URL: http://raiser-cortex:3011
+      CONTENT_INTEL_INTERNAL_URL: http://raiser-content-intel:3015
+      CORTEX_API_KEY: ${CORTEX_API_KEY}
+      CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
       PERSONA_URL: http://raiser-persona-pipeline:8500
       NEXT_PUBLIC_PICOVOICE_KEY: ${PICOVOICE_KEY:-}
+      # Authentik OIDC SSO (NextAuth — ready for when auth is wired into Portal)
+      NEXTAUTH_URL: "https://jarvis.00raiser.space"
+      NEXTAUTH_URL_INTERNAL: "http://localhost:3020"
+      NEXTAUTH_SECRET: ${PORTAL_NEXTAUTH_SECRET}
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      OIDC_CLIENT_ID: "3342aa800e1ba4f58ed7a1417a6fd5161c6a6826"
+      OIDC_CLIENT_SECRET: ${PORTAL_OIDC_CLIENT_SECRET}
+      OIDC_ISSUER_URL: "https://auth.00raiser.space/application/o/portal/"
+    volumes:
+    - /home/eternity/.openclaw/workspace/tools/cost-tracker-skill:/data/costs:ro
+    - /home/eternity/.openclaw/workspace/memory/cost-logs:/data/cost-logs:ro
     ports:
-      - "127.0.0.1:3020:3020"
+    - 0.0.0.0:3020:3020
     depends_on:
       cortex:
         condition: service_started
     networks:
-      - raiser-net
-
-  # ===========================================================================
-  # CONTENT INTEL — Content Intelligence Scraper
-  # ===========================================================================
-  # Continuous monitoring and analysis of top content creators.
-  # Tracks YouTube channels and Twitter profiles, extracts trends,
-  # identifies content gaps, and generates scored content ideas.
-
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256m
   content-intel:
     build:
       context: ./services/content-intel
@@ -798,20 +837,24 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: "3015"
-      DATABASE_URL: postgresql://content_intel:${CONTENT_INTEL_DB_PASSWORD}@postgres:5432/content_intel
+      PORT: '3015'
+      DATABASE_URL: postgresql://content_intel:${CONTENT_INTEL_DB_PASSWORD}@postgres:5432/raiser
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      APIFY_SCRAPER_URL: http://raiser-apify:8000
+      CORTEX_INTERNAL_URL: http://raiser-cortex:3011
+      CONTENT_INTEL_INTERNAL_URL: http://raiser-content-intel:3015
       CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
-      APIFY_SCRAPER_URL: http://raiser-apify:8400
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      # Cortex integration
       CORTEX_URL: http://raiser-cortex:3011
-      CORTEX_API_KEY: ${CORTEX_API_KEY}
-      CORTEX_TIMEOUT: "5000"
+      CORTEX_TIMEOUT: '5000'
+      YOUTUBEDL_URL: http://raiser-youtubedl:8000
+      YOUTUBEDL_API_KEY: ${YOUTUBEDL_API_KEY}
     ports:
-      - "127.0.0.1:3015:3015"
+    - 0.0.0.0:3015:3015
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3015/health"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3015/health || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -820,36 +863,30 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - raiser-net
-
-# =============================================================================
-# VOLUMES
-# =============================================================================
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 volumes:
-  # Core
-  postgres_data:
-  redis_data:
-  # Authentik
-  authentik_media:
-  authentik_templates:
-  authentik_certs:
-  # VoiceForge
-  voiceforge_storage:
-  voiceforge_models:
-  # YouTubeDL
-  youtubedl_downloads:
-  youtubedl_data:
-  # WhisperFlow
-  whisperflow_data:
-  # Newsletter
-  nvp_data:
-  nvp_logs:
-  # Persona Pipeline
-  persona_data:
-
-# =============================================================================
-# NETWORKS
-# =============================================================================
+  postgres_data: null
+  redis_data: null
+  authentik_media: null
+  authentik_templates: null
+  authentik_certs: null
+  voiceforge_storage: null
+  voiceforge_models: null
+  youtubedl_downloads: null
+  youtubedl_data: null
+  whisperflow_data: null
+  nvp_data: null
+  nvp_logs: null
+  persona_data: null
+  outline_data: null
 networks:
   raiser-net:
     driver: bridge

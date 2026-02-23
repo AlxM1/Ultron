@@ -85,16 +85,16 @@ export default function ContentIntelPage() {
                     </h3>
                     <div className="text-sm text-white/50 space-y-1">
                       <div>Platform: {creator.platform}</div>
-                      {creator.subscribers && (
+                      {creator.subscriber_count && (
                         <div>
-                          Subscribers: {creator.subscribers.toLocaleString()}
+                          Subscribers: {creator.subscriber_count.toLocaleString()}
                         </div>
                       )}
-                      {creator.avg_views && (
-                        <div>Avg Views: {creator.avg_views.toLocaleString()}</div>
+                      {creator.content_count && (
+                        <div>Content: {creator.content_count.toLocaleString()}</div>
                       )}
                       <div className="text-xs text-white/30 mt-2">
-                        Last checked: {new Date(creator.last_checked).toLocaleString()}
+                        Last checked: {new Date(creator.last_scraped_at || new Date().toISOString()).toLocaleString()}
                       </div>
                     </div>
                   </div>

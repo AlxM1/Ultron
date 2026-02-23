@@ -19,7 +19,7 @@ validateApiKeyConfig();
 app.use('*', async (c, next) => {
   await next();
   c.header('X-Content-Type-Options', 'nosniff');
-  c.header('X-Frame-Options', 'DENY');
+  c.header('X-Frame-Options', 'SAMEORIGIN');
   c.header('X-XSS-Protection', '1; mode=block');
   // Only set HSTS in production and when using HTTPS
   if (process.env.NODE_ENV === 'production') {
@@ -80,6 +80,38 @@ app.get('/health', async (c) => {
 // Protected routes (require API key)
 app.use('/api/*', apiKeyAuth);
 app.use('/api/*', rateLimit);
+
+// Service health reporting endpoint — services POST their status here
+app.post('/api/health', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { service, status, timestamp, details } = body;
+    if (!service) return c.json({ error: 'service name required' }, 400);
+    
+    // Upsert into service_health table (create if needed)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS service_health (
+        service TEXT PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'unknown',
+        last_seen TIMESTAMPTZ DEFAULT NOW(),
+        details JSONB DEFAULT '{}'
+      )
+    `);
+    await pool.query(`
+      INSERT INTO service_health (service, status, last_seen, details)
+      VALUES ($1, $2, NOW(), $3)
+      ON CONFLICT (service) DO UPDATE SET
+        status = EXCLUDED.status,
+        last_seen = NOW(),
+        details = EXCLUDED.details
+    `, [service, status || 'ok', JSON.stringify(details || {})]);
+    
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error('Health report failed:', err);
+    return c.json({ error: 'internal error' }, 500);
+  }
+});
 
 // Mount API routes
 app.route('/api/tasks', tasks);

@@ -38,7 +38,7 @@ export default function WorkflowsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  async function loadExecutionDetail(id: number) {
+  async function loadExecutionDetail(id: string | number) {
     try {
       const execution = await fetchExecutionById(id);
       setSelectedExecution(execution);
@@ -165,11 +165,11 @@ export default function WorkflowsPage() {
                           </div>
                         )}
                         <div className="text-xs text-white/40">
-                          Started: {new Date(execution.started_at).toLocaleString()}
+                          Started: {new Date(execution.startedAt).toLocaleString()}
                         </div>
-                        {execution.finished_at && (
+                        {execution.finishedAt && (
                           <div className="text-xs text-white/40">
-                            Finished: {new Date(execution.finished_at).toLocaleString()}
+                            Finished: {new Date(execution.finishedAt).toLocaleString()}
                           </div>
                         )}
                       </div>
@@ -207,7 +207,7 @@ export default function WorkflowsPage() {
                     <div>
                       <div className="text-white/40 mb-1">Workflow</div>
                       <div className="text-accent">
-                        {selectedExecution.workflow?.name || `#${selectedExecution.workflow_id}`}
+                        {selectedExecution.workflow?.name || `#${selectedExecution.workflowId}`}
                       </div>
                     </div>
                     <div>
@@ -229,14 +229,14 @@ export default function WorkflowsPage() {
                     <div>
                       <div className="text-white/40 mb-1">Started</div>
                       <div className="text-white/90">
-                        {new Date(selectedExecution.started_at).toLocaleString()}
+                        {new Date(selectedExecution.startedAt).toLocaleString()}
                       </div>
                     </div>
-                    {selectedExecution.finished_at && (
+                    {selectedExecution.finishedAt && (
                       <div>
                         <div className="text-white/40 mb-1">Finished</div>
                         <div className="text-white/90">
-                          {new Date(selectedExecution.finished_at).toLocaleString()}
+                          {new Date(selectedExecution.finishedAt).toLocaleString()}
                         </div>
                       </div>
                     )}

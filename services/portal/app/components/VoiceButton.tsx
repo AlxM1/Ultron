@@ -3,7 +3,7 @@
 import { Mic, MessageSquare } from "lucide-react";
 
 interface VoiceButtonProps {
-  state: "idle" | "listening" | "processing";
+  state: "idle" | "listening" | "processing" | "speaking";
   continuousMode: boolean;
   wakeWordEnabled: boolean;
   onPress: () => void;

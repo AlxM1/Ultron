@@ -102,15 +102,24 @@ creators.get('/', async (c) => {
     const limit = parseInt(c.req.query('limit') || '50');
     const offset = parseInt(c.req.query('offset') || '0');
 
-    let query = 'SELECT * FROM creators';
+    // JOIN with content table to include content_count per creator
+    let query = `
+      SELECT c.*, COALESCE(counts.content_count, 0) as content_count
+      FROM creators c
+      LEFT JOIN (
+        SELECT creator_id, COUNT(*) as content_count
+        FROM content
+        GROUP BY creator_id
+      ) counts ON c.id = counts.creator_id
+    `;
     const params = [];
 
     if (platform) {
-      query += ' WHERE platform = $1';
+      query += ' WHERE c.platform = $1';
       params.push(platform);
     }
 
-    query += ' ORDER BY subscriber_count DESC, name ASC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    query += ' ORDER BY c.subscriber_count DESC, c.name ASC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
     params.push(limit, offset);
 
     const result = await pool.query(query, params);

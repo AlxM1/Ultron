@@ -1,0 +1,154 @@
+{
+  "name": "Daily Cost Tracking & Aggregation",
+  "description": "Aggregates daily costs from all services and stores metrics",
+  "nodes": [
+    {
+      "id": "schedule_trigger",
+      "type": "ScheduleTrigger",
+      "position": { "x": 100, "y": 400 },
+      "parameters": {
+        "cronExpression": "0 1 * * *",
+        "timezone": "America/Vancouver",
+        "comment": "Runs daily at 1:00 AM PST"
+      }
+    },
+    {
+      "id": "get_date_range",
+      "type": "Function",
+      "position": { "x": 300, "y": 400 },
+      "parameters": {
+        "functionCode": "// Calculate yesterday's date range\nconst now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\n\nconst startOfDay = new Date(yesterday.setHours(0, 0, 0, 0));\nconst endOfDay = new Date(yesterday.setHours(23, 59, 59, 999));\n\nreturn {\n  date: yesterday.toISOString().split('T')[0],\n  start_timestamp: startOfDay.toISOString(),\n  end_timestamp: endOfDay.toISOString()\n};"
+      }
+    },
+    {
+      "id": "query_workflow_executions",
+      "type": "PostgresNode",
+      "position": { "x": 500, "y": 200 },
+      "parameters": {
+        "operation": "select",
+        "table": "executions",
+        "query": "SELECT workflow_id, COUNT(*) as execution_count, AVG(duration_ms) as avg_duration, SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) as error_count FROM executions WHERE created_at >= '{{ $json.start_timestamp }}' AND created_at < '{{ $json.end_timestamp }}' GROUP BY workflow_id"
+      }
+    },
+    {
+      "id": "query_api_usage",
+      "type": "PostgresNode",
+      "position": { "x": 500, "y": 350 },
+      "parameters": {
+        "operation": "select",
+        "table": "api_usage_logs",
+        "query": "SELECT service_name, api_provider, COUNT(*) as call_count, SUM(estimated_cost) as total_cost FROM api_usage_logs WHERE timestamp >= '{{ $json.start_timestamp }}' AND timestamp < '{{ $json.end_timestamp }}' GROUP BY service_name, api_provider"
+      }
+    },
+    {
+      "id": "query_storage_usage",
+      "type": "Command",
+      "position": { "x": 500, "y": 500 },
+      "parameters": {
+        "command": "docker exec raiser-postgres psql -U postgres -d raiser -t -c \"SELECT pg_database.datname, pg_database_size(pg_database.datname) as size FROM pg_database WHERE datname NOT IN ('template0', 'template1', 'postgres');\""
+      }
+    },
+    {
+      "id": "get_docker_stats",
+      "type": "Command",
+      "position": { "x": 500, "y": 650 },
+      "parameters": {
+        "command": "docker stats --no-stream --format '{{.Container}},{{.CPUPerc}},{{.MemUsage}}' | grep raiser-"
+      }
+    },
+    {
+      "id": "aggregate_costs",
+      "type": "Function",
+      "position": { "x": 700, "y": 400 },
+      "parameters": {
+        "functionCode": "// Aggregate all cost data\nconst dateInfo = $node['get_date_range'].json;\nconst executions = $node['query_workflow_executions'].json || [];\nconst apiUsage = $node['query_api_usage'].json || [];\nconst storageRaw = $node['query_storage_usage'].json?.stdout || '';\nconst dockerStats = $node['get_docker_stats'].json?.stdout || '';\n\n// Parse storage usage\nconst storageLines = storageRaw.split('\\n').filter(l => l.trim());\nlet totalStorageBytes = 0;\nconst dbSizes = {};\nstorageLines.forEach(line => {\n  const parts = line.trim().split('|');\n  if (parts.length >= 2) {\n    const dbName = parts[0].trim();\n    const size = parseInt(parts[1].trim());\n    if (!isNaN(size)) {\n      dbSizes[dbName] = size;\n      totalStorageBytes += size;\n    }\n  }\n});\n\n// Calculate API costs\nlet totalApiCost = 0;\nconst apiCostsByService = {};\napiUsage.forEach(usage => {\n  const cost = parseFloat(usage.total_cost) || 0;\n  totalApiCost += cost;\n  if (!apiCostsByService[usage.service_name]) {\n    apiCostsByService[usage.service_name] = 0;\n  }\n  apiCostsByService[usage.service_name] += cost;\n});\n\n// Estimate compute costs (simplified)\nconst executionCount = executions.reduce((sum, e) => sum + parseInt(e.execution_count), 0);\nconst avgExecutionMs = executions.reduce((sum, e) => sum + parseFloat(e.avg_duration), 0) / (executions.length || 1);\nconst estimatedComputeCost = (executionCount * avgExecutionMs / 1000 / 3600) * 0.01; // $0.01 per compute-hour estimate\n\n// Estimate storage costs\nconst storageGB = totalStorageBytes / (1024 * 1024 * 1024);\nconst estimatedStorageCost = storageGB * 0.023; // $0.023 per GB/month, prorated\n\nconst totalEstimatedCost = totalApiCost + estimatedComputeCost + estimatedStorageCost;\n\nreturn {\n  date: dateInfo.date,\n  workflow_stats: {\n    total_executions: executionCount,\n    avg_duration_ms: avgExecutionMs,\n    executions_by_workflow: executions\n  },\n  api_costs: {\n    total: totalApiCost,\n    by_service: apiCostsByService,\n    details: apiUsage\n  },\n  storage: {\n    total_gb: storageGB.toFixed(2),\n    estimated_cost: estimatedStorageCost.toFixed(4),\n    databases: dbSizes\n  },\n  compute: {\n    execution_count: executionCount,\n    estimated_cost: estimatedComputeCost.toFixed(4)\n  },\n  summary: {\n    total_estimated_cost: totalEstimatedCost.toFixed(4),\n    api_cost: totalApiCost.toFixed(4),\n    compute_cost: estimatedComputeCost.toFixed(4),\n    storage_cost: estimatedStorageCost.toFixed(4)\n  }\n};"
+      }
+    },
+    {
+      "id": "store_daily_metrics",
+      "type": "PostgresNode",
+      "position": { "x": 900, "y": 400 },
+      "parameters": {
+        "operation": "insert",
+        "table": "daily_cost_metrics",
+        "columns": "date,total_executions,api_cost,compute_cost,storage_cost,total_cost,metrics_data,created_at",
+        "values": "{{ $json.date }},{{ $json.workflow_stats.total_executions }},{{ $json.summary.api_cost }},{{ $json.summary.compute_cost }},{{ $json.summary.storage_cost }},{{ $json.summary.total_estimated_cost }},{{ $json }},NOW()",
+        "onConflict": "date",
+        "onConflictUpdate": true
+      }
+    },
+    {
+      "id": "check_cost_threshold",
+      "type": "If",
+      "position": { "x": 1100, "y": 400 },
+      "parameters": {
+        "condition": "{{ parseFloat($json.summary.total_estimated_cost) > 5.0 }}"
+      }
+    },
+    {
+      "id": "send_cost_alert",
+      "type": "HttpRequest",
+      "position": { "x": 1300, "y": 300 },
+      "parameters": {
+        "url": "http://localhost:3011/api/tasks",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "task_type": "cost_alert",
+          "priority": "high",
+          "data": {
+            "date": "{{ $json.date }}",
+            "total_cost": "{{ $json.summary.total_estimated_cost }}",
+            "threshold": "5.00",
+            "breakdown": "{{ $json.summary }}"
+          }
+        }
+      }
+    },
+    {
+      "id": "generate_report",
+      "type": "Function",
+      "position": { "x": 1300, "y": 500 },
+      "parameters": {
+        "functionCode": "// Generate daily cost report\nconst data = $json;\nconst report = `Daily Cost Report - ${data.date}\n===========================================\n\nTotal Estimated Cost: $${data.summary.total_estimated_cost}\n\nBreakdown:\n- API Costs: $${data.summary.api_cost}\n- Compute Costs: $${data.summary.compute_cost}\n- Storage Costs: $${data.summary.storage_cost}\n\nWorkflow Activity:\n- Total Executions: ${data.workflow_stats.total_executions}\n- Avg Duration: ${data.workflow_stats.avg_duration_ms.toFixed(0)}ms\n\nStorage Usage: ${data.storage.total_gb} GB\n`;\n\nconsole.log(report);\nreturn { report, ...data };"
+      }
+    },
+    {
+      "id": "store_report",
+      "type": "WriteFile",
+      "position": { "x": 1500, "y": 400 },
+      "parameters": {
+        "filePath": "/mnt/data/00raiser/reports/costs/{{ $json.date }}.txt",
+        "content": "{{ $json.report }}"
+      }
+    }
+  ],
+  "connections": [
+    { "source": "schedule_trigger", "target": "get_date_range" },
+    { "source": "get_date_range", "target": "query_workflow_executions" },
+    { "source": "get_date_range", "target": "query_api_usage" },
+    { "source": "get_date_range", "target": "query_storage_usage" },
+    { "source": "get_date_range", "target": "get_docker_stats" },
+    { "source": "query_workflow_executions", "target": "aggregate_costs" },
+    { "source": "query_api_usage", "target": "aggregate_costs" },
+    { "source": "query_storage_usage", "target": "aggregate_costs" },
+    { "source": "get_docker_stats", "target": "aggregate_costs" },
+    { "source": "aggregate_costs", "target": "store_daily_metrics" },
+    { "source": "store_daily_metrics", "target": "check_cost_threshold" },
+    { "source": "check_cost_threshold", "sourceOutput": "true", "target": "send_cost_alert" },
+    { "source": "check_cost_threshold", "sourceOutput": "false", "target": "generate_report" },
+    { "source": "send_cost_alert", "target": "generate_report" },
+    { "source": "generate_report", "target": "store_report" }
+  ],
+  "settings": {
+    "executionOrder": "sequential",
+    "saveExecutionData": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "America/Vancouver",
+    "executionTimeout": 300
+  },
+  "tags": ["cost-tracking", "metrics", "reporting", "daily"]
+}

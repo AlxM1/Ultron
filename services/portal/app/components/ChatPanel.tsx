@@ -3,17 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send } from "lucide-react";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
+export interface ChatMessage {
+  id?: string;
+  role: "user" | "assistant" | "jarvis" | "system";
+  content?: string;
+  text?: string;
+  model?: string;
+  timestamp: Date | number;
 }
 
 interface ChatPanelProps {
   open: boolean;
-  messages: Message[];
+  messages: ChatMessage[];
   model: string;
-  onModelChange: (model: string) => void;
+  onModelChange: (model: any) => void;
   onSend: (message: string) => void;
   onClose: () => void;
 }
@@ -73,9 +76,9 @@ export default function ChatPanel({
                     : "bg-white/5 text-white/90"
                 }`}
               >
-                <div className="text-sm">{msg.content}</div>
+                <div className="text-sm">{msg.content || msg.text}</div>
                 <div className="text-xs opacity-50 mt-1">
-                  {msg.timestamp.toLocaleTimeString("en-US", {
+                  {new Date(msg.timestamp).toLocaleTimeString("en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}

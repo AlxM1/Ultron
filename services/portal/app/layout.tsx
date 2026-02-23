@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import SessionProvider from "./components/SessionProvider";
 
 export const metadata: Metadata = {
   title: "00raiser Portal",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body>{children}</body>
+      <body>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }

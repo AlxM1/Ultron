@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Service } from "../services";
 import { fetchServiceStats, fetchTimeline, ServiceStats, Task } from "../lib/api";
-import { Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
 
-type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows";
+type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs";
 
 interface DashboardProps {
   services: Service[];
@@ -15,6 +14,337 @@ interface DashboardProps {
   bootComplete: boolean;
 }
 
+/* ─── Interactive Arc Reactor ─────────────────────────────────── */
+function InteractiveArcReactor() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const [velocity, setVelocity] = useState(0);
+  const [clicks, setClicks] = useState(0);
+  const lastPos = useRef({ x: 0.5, y: 0.5 });
+  const lastTime = useRef(Date.now());
+  const velocityDecay = useRef<number | null>(null);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    const now = Date.now();
+    const dt = Math.max(now - lastTime.current, 1);
+    const dx = x - lastPos.current.x;
+    const dy = y - lastPos.current.y;
+    const speed = Math.sqrt(dx * dx + dy * dy) / dt * 1000;
+
+    setMousePos({ x, y });
+    setVelocity(Math.min(speed * 3, 1));
+    lastPos.current = { x, y };
+    lastTime.current = now;
+
+    // Decay velocity
+    if (velocityDecay.current) cancelAnimationFrame(velocityDecay.current);
+    const decay = () => {
+      setVelocity(v => {
+        const next = v * 0.95;
+        if (next > 0.01) {
+          velocityDecay.current = requestAnimationFrame(decay);
+        }
+        return next;
+      });
+    };
+    velocityDecay.current = requestAnimationFrame(decay);
+  }, []);
+
+  const handleClick = useCallback(() => {
+    setClicks(c => c + 1);
+    setVelocity(1);
+    setTimeout(() => setClicks(c => Math.max(c - 1, 0)), 600);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMouseMove);
+    el.addEventListener("click", handleClick);
+    return () => {
+      el.removeEventListener("mousemove", handleMouseMove);
+      el.removeEventListener("click", handleClick);
+      if (velocityDecay.current) cancelAnimationFrame(velocityDecay.current);
+    };
+  }, [handleMouseMove, handleClick]);
+
+  // Derived intensity values
+  const intensity = velocity;
+  const coreGlow = 0.15 + intensity * 0.85;
+  const ringBrightness = 0.08 + intensity * 0.4;
+  const pulseSpeed = 3 - intensity * 2; // Faster when moving
+  const rotateSpeed = 30 - intensity * 20; // Faster rotation when moving
+  const ambientSize = 60 + intensity * 30;
+  const clickFlash = clicks > 0;
+
+  // Parallax offset based on mouse position
+  const parallaxX = (mousePos.x - 0.5) * 20;
+  const parallaxY = (mousePos.y - 0.5) * 20;
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        cursor: "crosshair",
+        zIndex: 1,
+      }}
+    >
+      {/* Ambient glow - reacts to movement */}
+      <div style={{
+        position: "absolute",
+        top: "40%",
+        left: "50%",
+        transform: `translate(calc(-50% + ${parallaxX * 0.5}px), calc(-50% + ${parallaxY * 0.5}px))`,
+        width: `${ambientSize}vw`,
+        height: `${ambientSize}vh`,
+        background: `radial-gradient(ellipse, rgba(74,243,255,${0.03 + intensity * 0.08}) 0%, transparent 60%)`,
+        pointerEvents: "none",
+        transition: "width 0.3s, height 0.3s",
+      }} />
+
+      {/* Click flash burst */}
+      {clickFlash && (
+        <div style={{
+          position: "absolute",
+          top: "45%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "80vw",
+          height: "80vh",
+          background: "radial-gradient(ellipse, rgba(74,243,255,0.15) 0%, transparent 50%)",
+          pointerEvents: "none",
+          animation: "flash-burst 0.6s ease-out forwards",
+        }} />
+      )}
+
+      {/* Reactor SVG */}
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: `translate(calc(-50% + ${parallaxX}px), calc(-55% + ${parallaxY}px))`,
+        width: "min(50vw, 50vh)",
+        height: "min(50vw, 50vh)",
+        pointerEvents: "none",
+        transition: "transform 0.1s ease-out",
+        filter: `drop-shadow(0 0 ${20 + intensity * 60}px rgba(74,243,255,${0.1 + intensity * 0.3}))`,
+      }}>
+        <svg viewBox="0 0 400 400" width="100%" height="100%">
+          {/* Outermost ring */}
+          <circle cx="200" cy="200" r="195" fill="none" stroke={`rgba(74,243,255,${0.06 + intensity * 0.12})`} strokeWidth="0.5" />
+
+          {/* Outer rotating ring - speed reacts to mouse */}
+          <g style={{ transformOrigin: "200px 200px", animation: `ring-rotate ${rotateSpeed}s linear infinite` }}>
+            <circle cx="200" cy="200" r="180" fill="none" stroke={`rgba(74,243,255,${ringBrightness})`} strokeWidth={1 + intensity * 1.5} strokeDasharray="8 16" />
+          </g>
+
+          {/* Second ring - counter rotate */}
+          <g style={{ transformOrigin: "200px 200px", animation: `ring-rotate-reverse ${rotateSpeed * 0.85}s linear infinite` }}>
+            <circle cx="200" cy="200" r="155" fill="none" stroke={`rgba(74,243,255,${ringBrightness * 1.2})`} strokeWidth={1 + intensity} strokeDasharray="20 10" />
+          </g>
+
+          {/* Third ring */}
+          <g style={{ transformOrigin: "200px 200px", animation: `ring-rotate ${rotateSpeed * 0.7}s linear infinite` }}>
+            <circle cx="200" cy="200" r="130" fill="none" stroke={`rgba(74,243,255,${ringBrightness * 1.4})`} strokeWidth={1.5 + intensity} strokeDasharray="4 8" />
+          </g>
+
+          {/* Inner structural ring - pulses with intensity */}
+          <circle cx="200" cy="200" r="105" fill="none" stroke={`rgba(74,243,255,${0.15 + intensity * 0.35})`} strokeWidth={1 + intensity * 0.5} />
+
+          {/* Hexagonal housing segments - glow with movement */}
+          {[0, 60, 120, 180, 240, 300].map((deg) => (
+            <g key={deg} style={{ transformOrigin: "200px 200px", transform: `rotate(${deg}deg)` }}>
+              <rect
+                x="188" y="100" width="24" height="10" rx="2"
+                fill={`rgba(74,243,255,${0.08 + intensity * 0.2})`}
+                stroke={`rgba(74,243,255,${0.15 + intensity * 0.35})`}
+                strokeWidth="0.5"
+              />
+            </g>
+          ))}
+
+          {/* Inner glow ring */}
+          <circle cx="200" cy="200" r="80" fill={`rgba(74,243,255,${0.02 + intensity * 0.04})`} stroke={`rgba(74,243,255,${0.2 + intensity * 0.4})`} strokeWidth={2 + intensity} />
+
+          {/* Outer hexagon */}
+          <polygon
+            points="200,145 248,190 248,235 200,260 152,235 152,190"
+            fill="none"
+            stroke={`rgba(74,243,255,${0.12 + intensity * 0.25})`}
+            strokeWidth={1 + intensity * 0.5}
+          />
+
+          {/* Inner hexagon */}
+          <polygon
+            points="200,160 235,195 235,225 200,245 165,225 165,195"
+            fill="none"
+            stroke={`rgba(74,243,255,${0.18 + intensity * 0.3})`}
+            strokeWidth={1 + intensity * 0.5}
+          />
+
+          {/* Core chambers */}
+          <circle cx="200" cy="200" r="45" fill={`rgba(74,243,255,${0.03 + intensity * 0.06})`} stroke={`rgba(74,243,255,${0.25 + intensity * 0.35})`} strokeWidth={1.5 + intensity} />
+          <circle cx="200" cy="200" r="25" fill={`rgba(74,243,255,${0.05 + intensity * 0.1})`} stroke={`rgba(74,243,255,${0.35 + intensity * 0.4})`} strokeWidth={1 + intensity * 0.5} />
+
+          {/* Pulsing core - faster when moving */}
+          <circle cx="200" cy="200" r="12" fill={`rgba(74,243,255,${coreGlow})`} style={{ animation: `arc-reactor-pulse ${pulseSpeed}s ease-in-out infinite` }}>
+            <animate attributeName="r" values={`${10 + intensity * 4};${14 + intensity * 6};${10 + intensity * 4}`} dur={`${pulseSpeed}s`} repeatCount="indefinite" />
+          </circle>
+          <circle cx="200" cy="200" r={6 + intensity * 3} fill={`rgba(74,243,255,${0.4 + intensity * 0.5})`} />
+          <circle cx="200" cy="200" r={3 + intensity * 2} fill="#4af3ff" style={{ filter: `blur(${1 + intensity * 2}px)` }} />
+
+          {/* Energy particles - appear with movement */}
+          {intensity > 0.1 && [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
+            const dist = 60 + Math.sin(Date.now() / 500 + i) * 15;
+            const rad = (deg * Math.PI) / 180;
+            const px = 200 + Math.cos(rad) * dist;
+            const py = 200 + Math.sin(rad) * dist;
+            return (
+              <circle
+                key={deg}
+                cx={px} cy={py}
+                r={1 + intensity * 1.5}
+                fill={`rgba(74,243,255,${intensity * 0.6})`}
+                style={{ animation: `arc-reactor-pulse ${1 + i * 0.2}s ease-in-out infinite` }}
+              />
+            );
+          })}
+
+          {/* Radial glow */}
+          <defs>
+            <radialGradient id="reactorGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={`rgba(74,243,255,${0.08 + intensity * 0.15})`} />
+              <stop offset="40%" stopColor={`rgba(74,243,255,${0.03 + intensity * 0.05})`} />
+              <stop offset="100%" stopColor="rgba(74,243,255,0)" />
+            </radialGradient>
+          </defs>
+          <circle cx="200" cy="200" r="190" fill="url(#reactorGlow)" />
+
+          {/* Tick marks */}
+          {Array.from({ length: 72 }).map((_, i) => {
+            const deg = i * 5;
+            const len = i % 6 === 0 ? 8 : 3;
+            const opacity = (i % 6 === 0 ? 0.2 : 0.08) + intensity * 0.15;
+            return (
+              <line
+                key={i}
+                x1="200" y1={10}
+                x2="200" y2={10 + len}
+                stroke={`rgba(74,243,255,${opacity})`}
+                strokeWidth="0.5"
+                style={{ transformOrigin: "200px 200px", transform: `rotate(${deg}deg)` }}
+              />
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Mouse trail particles */}
+      {intensity > 0.15 && (
+        <div style={{
+          position: "absolute",
+          left: `${mousePos.x * 100}%`,
+          top: `${mousePos.y * 100}%`,
+          transform: "translate(-50%, -50%)",
+          width: 4 + intensity * 8,
+          height: 4 + intensity * 8,
+          borderRadius: "50%",
+          background: `rgba(74,243,255,${intensity * 0.3})`,
+          boxShadow: `0 0 ${10 + intensity * 20}px rgba(74,243,255,${intensity * 0.4})`,
+          pointerEvents: "none",
+          transition: "width 0.15s, height 0.15s, left 0.05s, top 0.05s",
+        }} />
+      )}
+
+      {/* Crosshair at mouse position - subtle */}
+      {intensity > 0.05 && (
+        <svg
+          style={{
+            position: "absolute",
+            left: `${mousePos.x * 100}%`,
+            top: `${mousePos.y * 100}%`,
+            transform: "translate(-50%, -50%)",
+            width: 24,
+            height: 24,
+            pointerEvents: "none",
+            opacity: intensity * 0.5,
+            transition: "left 0.05s, top 0.05s",
+          }}
+          viewBox="0 0 24 24"
+        >
+          <line x1="12" y1="2" x2="12" y2="8" stroke="#4af3ff" strokeWidth="0.5" />
+          <line x1="12" y1="16" x2="12" y2="22" stroke="#4af3ff" strokeWidth="0.5" />
+          <line x1="2" y1="12" x2="8" y2="12" stroke="#4af3ff" strokeWidth="0.5" />
+          <line x1="16" y1="12" x2="22" y2="12" stroke="#4af3ff" strokeWidth="0.5" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+/* ─── Status text at bottom ───────────────────────────────────── */
+function StatusLine({ healthStatus, services }: { healthStatus: Record<string, boolean>; services: Service[] }) {
+  const displayServices = services.filter(s => s.id !== "settings");
+  const online = Object.values(healthStatus).filter(Boolean).length;
+  const total = displayServices.length;
+  const isLoading = Object.keys(healthStatus).length === 0;
+
+  return (
+    <div style={{
+      position: "absolute",
+      bottom: 100,
+      left: "50%",
+      transform: "translateX(-50%)",
+      display: "flex",
+      alignItems: "center",
+      gap: 24,
+      opacity: 0.5,
+      zIndex: 2,
+    }}>
+      <div style={{
+        fontSize: 10,
+        fontFamily: "'SF Mono', monospace",
+        letterSpacing: "0.15em",
+        color: "rgba(74,243,255,0.6)",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}>
+        <div style={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: isLoading ? "#f59e0b" : online === total ? "#22c55e" : "#ef4444",
+          boxShadow: isLoading ? "0 0 4px #f59e0b" : online === total ? "0 0 6px #22c55e" : "0 0 4px #ef4444",
+          animation: "status-online 2s ease-in-out infinite",
+        }} />
+        {isLoading ? "CHECKING SYSTEMS..." : `${online}/${total} SYSTEMS ONLINE`}
+      </div>
+      <div style={{
+        width: 1,
+        height: 12,
+        background: "rgba(74,243,255,0.15)",
+      }} />
+      <div style={{
+        fontSize: 10,
+        fontFamily: "'SF Mono', monospace",
+        letterSpacing: "0.15em",
+        color: "rgba(74,243,255,0.4)",
+      }}>
+        JARVIS v4.6.2
+      </div>
+    </div>
+  );
+}
+
+/* ─── Dashboard (Minimal + Interactive) ───────────────────────── */
 export default function Dashboard({
   services,
   healthStatus,
@@ -22,236 +352,61 @@ export default function Dashboard({
   onNavigate,
   bootComplete,
 }: DashboardProps) {
-  const [stats, setStats] = useState<ServiceStats[]>([]);
-  const [timeline, setTimeline] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [statsData, timelineData] = await Promise.all([
-          fetchServiceStats(),
-          fetchTimeline(10),
-        ]);
-        setStats(statsData);
-        setTimeline(timelineData);
-      } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (bootComplete) {
-      loadData();
-      const interval = setInterval(loadData, 30000); // Refresh every 30s
-      return () => clearInterval(interval);
-    }
-  }, [bootComplete]);
-
-  const totalTasks = stats.reduce((sum, s) => sum + s.total_tasks, 0);
-  const completedToday = stats.reduce((sum, s) => sum + s.completed, 0);
-  const failedToday = stats.reduce((sum, s) => sum + s.failed, 0);
-  const activeServices = Object.values(healthStatus).filter(Boolean).length;
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
-    <div className="h-full overflow-y-auto p-8 bg-black">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-accent to-accent-deep bg-clip-text text-transparent mb-2">
-            00raiser Portal
-          </h1>
-          <p className="text-white/50">System Overview & Control Center</p>
+    <div style={{
+      height: "100%",
+      position: "relative",
+      overflow: "hidden",
+      background: "linear-gradient(135deg, #000008 0%, #000510 50%, #000308 100%)",
+    }}>
+      {/* Hex grid background */}
+      <div className="hex-grid-bg" style={{ position: "absolute", inset: 0, zIndex: 0 }} />
+
+      {/* Scan line */}
+      <div className="scanline-overlay" style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none" }} />
+
+      {/* Interactive Arc Reactor - responds to mouse */}
+      <InteractiveArcReactor />
+
+      {/* Clock - top right, subtle */}
+      <div style={{
+        position: "absolute",
+        top: 16,
+        right: 24,
+        zIndex: 4,
+        textAlign: "right",
+        opacity: 0.6,
+        pointerEvents: "none",
+      }}>
+        <div style={{
+          fontSize: 18,
+          fontWeight: 600,
+          fontFamily: "'SF Mono', monospace",
+          color: "#4af3ff",
+          textShadow: "0 0 8px rgba(74,243,255,0.4)",
+          letterSpacing: "0.1em",
+        }}>
+          {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={<Activity className="text-accent" />}
-            label="Active Services"
-            value={`${activeServices}/${services.length - 1}`} // -1 for settings
-            color="accent"
-          />
-          <StatCard
-            icon={<CheckCircle2 className="text-green-500" />}
-            label="Completed Today"
-            value={completedToday.toString()}
-            color="green"
-          />
-          <StatCard
-            icon={<XCircle className="text-red-500" />}
-            label="Failed Today"
-            value={failedToday.toString()}
-            color="red"
-          />
-          <StatCard
-            icon={<Clock className="text-accent" />}
-            label="Total Tasks"
-            value={totalTasks.toString()}
-            color="accent"
-          />
-        </div>
-
-        {/* Services Grid */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4 text-white/90">Services</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services
-              .filter((s) => s.id !== "settings")
-              .map((service) => {
-                const isOnline = healthStatus[service.id];
-                const serviceStat = stats.find((s) => s.service_name === service.id);
-
-                return (
-                  <button
-                    key={service.id}
-                    onClick={() => onSelect(service.id)}
-                    className="glass-heavy rounded-panel p-6 text-left hover:bg-accent/5 transition-all group"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="text-4xl">{service.icon}</div>
-                      <div
-                        className={`w-3 h-3 rounded-full ${
-                          isOnline ? "bg-green-500" : "bg-red-500/50"
-                        } animate-pulse`}
-                      />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2 text-white/90 group-hover:text-accent transition-colors">
-                      {service.name}
-                    </h3>
-                    <p className="text-sm text-white/50 mb-4">{service.description}</p>
-                    {serviceStat && (
-                      <div className="text-xs text-white/40 space-y-1">
-                        <div>Tasks: {serviceStat.total_tasks}</div>
-                        <div>Success: {serviceStat.success_rate.toFixed(1)}%</div>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-
-        {/* Quick Access */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4 text-white/90">Quick Access</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button
-              onClick={() => onNavigate("services")}
-              className="glass-heavy rounded-panel p-6 text-left hover:bg-accent/5 transition-all group"
-            >
-              <div className="text-3xl mb-3">🔧</div>
-              <h3 className="text-lg font-semibold text-white/90 group-hover:text-accent transition-colors">
-                All Services
-              </h3>
-              <p className="text-sm text-white/50">Monitor & manage services</p>
-            </button>
-            <button
-              onClick={() => onNavigate("timeline")}
-              className="glass-heavy rounded-panel p-6 text-left hover:bg-accent/5 transition-all group"
-            >
-              <div className="text-3xl mb-3">📈</div>
-              <h3 className="text-lg font-semibold text-white/90 group-hover:text-accent transition-colors">
-                Activity Timeline
-              </h3>
-              <p className="text-sm text-white/50">Real-time task monitoring</p>
-            </button>
-            <button
-              onClick={() => onNavigate("workflows")}
-              className="glass-heavy rounded-panel p-6 text-left hover:bg-accent/5 transition-all group"
-            >
-              <div className="text-3xl mb-3">⚙️</div>
-              <h3 className="text-lg font-semibold text-white/90 group-hover:text-accent transition-colors">
-                Workflows
-              </h3>
-              <p className="text-sm text-white/50">AgentSmith orchestration</p>
-            </button>
-            <button
-              onClick={() => onNavigate("content-intel")}
-              className="glass-heavy rounded-panel p-6 text-left hover:bg-accent/5 transition-all group"
-            >
-              <div className="text-3xl mb-3">🧠</div>
-              <h3 className="text-lg font-semibold text-white/90 group-hover:text-accent transition-colors">
-                Content Intel
-              </h3>
-              <p className="text-sm text-white/50">Creators & ideas</p>
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Activity Timeline */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold text-white/90">Recent Activity</h2>
-            <button
-              onClick={() => onNavigate("timeline")}
-              className="text-sm text-accent hover:text-accent/80 transition-colors"
-            >
-              View All →
-            </button>
-          </div>
-          <div className="glass-heavy rounded-panel p-6">
-            {loading ? (
-              <div className="text-white/50 text-center py-8">Loading...</div>
-            ) : timeline.length === 0 ? (
-              <div className="text-white/50 text-center py-8">No recent activity</div>
-            ) : (
-              <div className="space-y-3">
-                {timeline.slice(0, 5).map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        task.status === "completed"
-                          ? "bg-green-500"
-                          : task.status === "failed"
-                          ? "bg-red-500"
-                          : task.status === "running"
-                          ? "bg-accent animate-pulse"
-                          : "bg-white/30"
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white/90 truncate">
-                        <span className="text-accent">{task.service_name}</span> • {task.task_type}
-                      </div>
-                      <div className="text-xs text-white/40">
-                        {new Date(task.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-xs text-white/40 capitalize">{task.status}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div style={{
+          fontSize: 9,
+          color: "rgba(74,243,255,0.35)",
+          fontFamily: "'SF Mono', monospace",
+          letterSpacing: "0.15em",
+        }}>
+          {time.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()}
         </div>
       </div>
-    </div>
-  );
-}
 
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <div className="glass-heavy rounded-panel p-6">
-      <div className="flex items-center gap-3 mb-2">
-        {icon}
-        <div className="text-sm text-white/50">{label}</div>
-      </div>
-      <div className="text-3xl font-bold text-white/90">{value}</div>
+      {/* Status line above dock */}
+      <StatusLine healthStatus={healthStatus} services={services} />
     </div>
   );
 }

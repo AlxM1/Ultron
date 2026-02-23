@@ -1,0 +1,149 @@
+{
+  "name": "Content Analysis Pipeline",
+  "description": "Triggers persona analysis when new transcript arrives from WhisperFlow or YouTubeDL",
+  "nodes": [
+    {
+      "id": "webhook_trigger",
+      "type": "WebhookTrigger",
+      "position": { "x": 100, "y": 300 },
+      "parameters": {
+        "path": "/content-pipeline",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "authHeaderName": "X-API-Key"
+      }
+    },
+    {
+      "id": "validate_transcript",
+      "type": "Function",
+      "position": { "x": 300, "y": 300 },
+      "parameters": {
+        "functionCode": "// Validate incoming transcript data\nconst data = $input.first().json;\n\nif (!data.transcript || !data.source) {\n  throw new Error('Missing required fields: transcript or source');\n}\n\nreturn {\n  transcript_id: data.id || Date.now().toString(),\n  transcript: data.transcript,\n  source: data.source,\n  source_url: data.url || null,\n  metadata: {\n    duration: data.duration,\n    language: data.language || 'en',\n    timestamp: data.timestamp || new Date().toISOString(),\n    ...data.metadata\n  }\n};"
+      }
+    },
+    {
+      "id": "store_transcript",
+      "type": "PostgresNode",
+      "position": { "x": 500, "y": 200 },
+      "parameters": {
+        "operation": "insert",
+        "table": "transcripts",
+        "columns": "transcript_id,transcript,source,source_url,metadata,created_at",
+        "values": "{{ $json.transcript_id }},{{ $json.transcript }},{{ $json.source }},{{ $json.source_url }},{{ $json.metadata }},NOW()"
+      }
+    },
+    {
+      "id": "trigger_persona_analysis",
+      "type": "HttpRequest",
+      "position": { "x": 500, "y": 400 },
+      "parameters": {
+        "url": "http://localhost:8500/api/personas/analyze",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-API-Key": "{{ $credentials.persona_api_key }}"
+        },
+        "body": {
+          "transcript_id": "{{ $json.transcript_id }}",
+          "text": "{{ $json.transcript }}",
+          "source": "{{ $json.source }}",
+          "analyze_sentiment": true,
+          "extract_topics": true,
+          "identify_speaker": true
+        }
+      }
+    },
+    {
+      "id": "wait_for_analysis",
+      "type": "Wait",
+      "position": { "x": 700, "y": 400 },
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "fetch_analysis_result",
+      "type": "HttpRequest",
+      "position": { "x": 900, "y": 400 },
+      "parameters": {
+        "url": "http://localhost:8500/api/personas/analysis/{{ $node.trigger_persona_analysis.json.analysis_id }}",
+        "method": "GET",
+        "headers": {
+          "X-API-Key": "{{ $credentials.persona_api_key }}"
+        }
+      }
+    },
+    {
+      "id": "store_analysis",
+      "type": "PostgresNode",
+      "position": { "x": 1100, "y": 400 },
+      "parameters": {
+        "operation": "insert",
+        "table": "persona_analysis",
+        "columns": "transcript_id,analysis_id,sentiment,topics,speaker_id,confidence,created_at",
+        "values": "{{ $node.validate_transcript.json.transcript_id }},{{ $json.id }},{{ $json.sentiment }},{{ $json.topics }},{{ $json.speaker_id }},{{ $json.confidence }},NOW()"
+      }
+    },
+    {
+      "id": "send_notification",
+      "type": "HttpRequest",
+      "position": { "x": 1300, "y": 400 },
+      "parameters": {
+        "url": "http://localhost:3011/api/tasks",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "task_type": "content_analyzed",
+          "data": {
+            "transcript_id": "{{ $node.validate_transcript.json.transcript_id }}",
+            "source": "{{ $node.validate_transcript.json.source }}",
+            "analysis": "{{ $json }}"
+          }
+        }
+      }
+    },
+    {
+      "id": "error_handler",
+      "type": "HttpRequest",
+      "position": { "x": 700, "y": 100 },
+      "parameters": {
+        "url": "http://localhost:3011/api/tasks",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "task_type": "pipeline_error",
+          "priority": "high",
+          "data": {
+            "workflow": "content-pipeline",
+            "error": "{{ $json.error }}",
+            "transcript_id": "{{ $node.validate_transcript.json.transcript_id }}"
+          }
+        }
+      }
+    }
+  ],
+  "connections": [
+    { "source": "webhook_trigger", "target": "validate_transcript" },
+    { "source": "validate_transcript", "target": "store_transcript" },
+    { "source": "validate_transcript", "target": "trigger_persona_analysis" },
+    { "source": "trigger_persona_analysis", "target": "wait_for_analysis" },
+    { "source": "wait_for_analysis", "target": "fetch_analysis_result" },
+    { "source": "fetch_analysis_result", "target": "store_analysis" },
+    { "source": "store_analysis", "target": "send_notification" }
+  ],
+  "settings": {
+    "executionOrder": "sequential",
+    "saveExecutionData": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "any",
+    "errorWorkflow": "error_handler",
+    "timezone": "America/Vancouver",
+    "executionTimeout": 600
+  },
+  "tags": ["content", "pipeline", "persona", "analysis"]
+}

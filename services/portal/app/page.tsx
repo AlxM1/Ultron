@@ -15,6 +15,7 @@ import ServicesPage from "./pages/ServicesPage";
 import ContentIntelPage from "./pages/ContentIntelPage";
 import TimelinePage from "./pages/TimelinePage";
 import WorkflowsPage from "./pages/WorkflowsPage";
+import CostDashboard from "./components/CostDashboard";
 import { useVoice } from "./hooks/useVoice";
 import dynamic from "next/dynamic";
 
@@ -22,13 +23,19 @@ const JarvisHUD = dynamic(() => import("./components/JarvisHUD"), {
   ssr: false,
 });
 
-type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows";
+type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs";
 
 export default function Home() {
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<PageView>("home");
   const [healthStatus, setHealthStatus] = useState<Record<string, boolean>>({});
-  const [bootComplete, setBootComplete] = useState(false);
+  const [bootComplete, setBootComplete] = useState(() => {
+    // Skip boot sequence if already completed this browser session
+    if (typeof window !== "undefined" && sessionStorage.getItem("jarvis-boot-done")) {
+      return true;
+    }
+    return false;
+  });
   const [personaChatOpen, setPersonaChatOpen] = useState(false);
 
   const activeService = services.find((s) => s.id === activeApp) ?? null;
@@ -109,7 +116,12 @@ export default function Home() {
 
   return (
     <>
-      <JarvisHUD voiceState={voice.state} onBootComplete={() => setBootComplete(true)} />
+      {!bootComplete && (
+        <JarvisHUD voiceState={voice.state} onBootComplete={() => {
+          setBootComplete(true);
+          if (typeof window !== "undefined") sessionStorage.setItem("jarvis-boot-done", "1");
+        }} />
+      )}
       <div
         style={{
           display: "flex",
@@ -148,6 +160,8 @@ export default function Home() {
           <TimelinePage />
         ) : activePage === "workflows" ? (
           <WorkflowsPage />
+        ) : activePage === "costs" ? (
+          <CostDashboard />
         ) : (
           <Dashboard
             services={services}

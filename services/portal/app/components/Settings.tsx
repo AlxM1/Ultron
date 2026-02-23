@@ -14,9 +14,9 @@ interface SettingsData {
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData>({
     cortexApiKey: "",
-    cortexUrl: "http://localhost:3011",
-    agentsmithUrl: "http://localhost:4000",
-    contentIntelUrl: "http://localhost:3012",
+    cortexUrl: "https://cortex.00raiser.space",
+    agentsmithUrl: "https://agentsmith.00raiser.space",
+    contentIntelUrl: "https://content.00raiser.space",
     theme: "dark",
   });
   const [showApiKey, setShowApiKey] = useState(false);

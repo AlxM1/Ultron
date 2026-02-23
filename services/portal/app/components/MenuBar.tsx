@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Service } from "../services";
-import { Home, Server, Brain, Activity, Workflow, DollarSign } from "lucide-react";
+import { Home, Server, Brain, Activity, Workflow, DollarSign, Map } from "lucide-react";
 
-type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs";
+type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs" | "roadmap";
 
 interface MenuBarProps {
   activeService: Service | null;
@@ -19,6 +19,7 @@ const navItems = [
   { id: "workflows" as PageView, label: "Workflows", icon: Workflow },
   { id: "content-intel" as PageView, label: "Intel", icon: Brain },
   { id: "costs" as PageView, label: "Costs", icon: DollarSign },
+  { id: "roadmap" as PageView, label: "Roadmap", icon: Map },
 ];
 
 export default function MenuBar({ activeService, activePage = "home", onHome, onNavigate }: MenuBarProps) {

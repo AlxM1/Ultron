@@ -16,6 +16,7 @@ import ContentIntelPage from "./pages/ContentIntelPage";
 import TimelinePage from "./pages/TimelinePage";
 import WorkflowsPage from "./pages/WorkflowsPage";
 import CostDashboard from "./components/CostDashboard";
+import RoadmapPage from "./pages/RoadmapPage";
 import { useVoice } from "./hooks/useVoice";
 import dynamic from "next/dynamic";
 
@@ -23,7 +24,7 @@ const JarvisHUD = dynamic(() => import("./components/JarvisHUD"), {
   ssr: false,
 });
 
-type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs";
+type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs" | "roadmap";
 
 export default function Home() {
   const [activeApp, setActiveApp] = useState<string | null>(null);
@@ -162,6 +163,8 @@ export default function Home() {
           <WorkflowsPage />
         ) : activePage === "costs" ? (
           <CostDashboard />
+        ) : activePage === "roadmap" ? (
+          <RoadmapPage />
         ) : (
           <Dashboard
             services={services}

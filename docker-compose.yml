@@ -814,6 +814,7 @@ services:
     volumes:
     - /home/eternity/.openclaw/workspace/tools/cost-tracker-skill:/data/costs:ro
     - /home/eternity/.openclaw/workspace/memory/cost-logs:/data/cost-logs:ro
+    - /home/eternity/.openclaw/workspace/tools/roadmap.json:/data/roadmap.json:ro
     ports:
     - 0.0.0.0:3020:3020
     depends_on:

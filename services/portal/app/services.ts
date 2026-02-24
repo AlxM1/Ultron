@@ -32,7 +32,7 @@ export const services: Service[] = [
     id: "innotion",
     name: "INotion",
     icon: "📚",
-    url: "https://outline.00raiser.space",
+    url: "https://inotion.00raiser.space",
     healthUrl: "http://localhost:3010",
     description: "Knowledge base — documents, creator profiles, intelligence",
     port: 3010,

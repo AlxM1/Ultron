@@ -29,7 +29,7 @@ PG_CONTAINER="${COMPOSE_PROJECT}-postgres-1"
 REDIS_CONTAINER="${COMPOSE_PROJECT}-redis-1"
 
 # Databases to back up (must match init-databases.sh)
-DATABASES=(authentik agentsmith krya voiceforge youtubedl newsletter_pipeline)
+DATABASES=(authentik agentsmith krya voiceforge youtubedl newsletter_pipeline content_intel raiser scraper)
 
 # Volume directories to back up (relative to project root)
 MEDIA_DIRS=(downloads uploads output data)

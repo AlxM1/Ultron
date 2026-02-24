@@ -1,3 +1,18 @@
+# =============================================================================
+# LOG ROTATION NOTE (V-10)
+# Global Docker log rotation is configured via /etc/docker/daemon.json:
+#   - log-driver: json-file
+#   - max-size: 10m (rotate when log file exceeds 10MB)
+#   - max-file: 3  (keep at most 3 rotated log files per container)
+#
+# This applies to ALL containers on this host automatically.
+# No per-service logging: config is needed in this compose file.
+#
+# To apply changes to daemon.json, reload Docker daemon (requires sudo):
+#   sudo kill -HUP $(pidof dockerd)   # graceful reload (no container restart)
+#   OR: sudo systemctl reload docker   # if running via systemd
+# =============================================================================
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -68,7 +83,8 @@ services:
       retries: 5
     networks:
     - raiser-net
-    security_opt: []
+    security_opt:
+    - no-new-privileges:true
     cap_drop:
     - ALL
     cap_add:
@@ -112,7 +128,8 @@ services:
         condition: service_healthy
     networks:
     - raiser-net
-    security_opt: []
+    security_opt:
+    - no-new-privileges:true
     cap_drop:
     - ALL
     deploy:
@@ -145,7 +162,8 @@ services:
         condition: service_healthy
     networks:
     - raiser-net
-    security_opt: []
+    security_opt:
+    - no-new-privileges:true
     cap_drop:
     - ALL
     deploy:
@@ -806,13 +824,16 @@ services:
       NEXT_PUBLIC_OUTLINE_URL: https://inotion.00raiser.space
       PERSONA_URL: http://raiser-persona-pipeline:8500
       NEXT_PUBLIC_PICOVOICE_KEY: ${PICOVOICE_KEY:-}
-      # Authentik OIDC SSO (NextAuth — ready for when auth is wired into Portal)
+      # Authentik OIDC SSO (NextAuth)
       NEXTAUTH_URL: "https://jarvis.00raiser.space"
       NEXTAUTH_URL_INTERNAL: "http://localhost:3020"
       NEXTAUTH_SECRET: ${PORTAL_NEXTAUTH_SECRET}
       OIDC_CLIENT_ID: ${PORTAL_OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${PORTAL_OIDC_CLIENT_SECRET}
       OIDC_ISSUER_URL: "https://auth.00raiser.space/application/o/portal/"
+      OIDC_APP_SLUG: "portal"
+      AUTHENTIK_EXTERNAL_URL: "https://auth.00raiser.space"
+      AUTHENTIK_INTERNAL_URL: "http://raiser-authentik-server:9000"
     volumes:
     - /home/eternity/.openclaw/workspace/tools/cost-tracker-skill:/data/costs:ro
     - /home/eternity/.openclaw/workspace/memory/cost-logs:/data/cost-logs:ro

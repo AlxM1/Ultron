@@ -20,3 +20,4 @@ __pycache__/
 # Logs
 *.log
 .youtube-cookies.txt
+docker-compose.yml.bak

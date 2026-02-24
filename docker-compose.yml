@@ -186,7 +186,7 @@ services:
       # Authentik OIDC SSO
       SSO_OIDC_ENABLED: "true"
       SSO_OIDC_NAME: "Authentik"
-      SSO_OIDC_CLIENT_ID: "38d07f506a5f5e4e9895e382241dcb58e1f44018"
+      SSO_OIDC_CLIENT_ID: ${AGENTSMITH_OIDC_CLIENT_ID}
       SSO_OIDC_CLIENT_SECRET: ${AGENTSMITH_OIDC_CLIENT_SECRET}
       SSO_OIDC_ISSUER: "https://auth.00raiser.space/"
       SSO_OIDC_AUTH_URL: "https://auth.00raiser.space/application/o/authorize/"
@@ -367,7 +367,7 @@ services:
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
       TASK_BRIDGE_URL: http://raiser-cortex:3011
       # Authentik OIDC SSO (Krya uses forward-auth headers; OIDC vars stored for reference/future)
-      OIDC_CLIENT_ID: "9e888a8e609c7e3d026f0f65e4b8c1231597da28"
+      OIDC_CLIENT_ID: ${KRYA_OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${KRYA_OIDC_CLIENT_SECRET}
       OIDC_ISSUER_URL: "https://auth.00raiser.space/application/o/krya/"
     ports:
@@ -801,7 +801,7 @@ services:
       CONTENT_INTEL_INTERNAL_URL: http://raiser-content-intel:3015
       CORTEX_API_KEY: ${CORTEX_API_KEY}
       CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
-      OUTLINE_API_KEY: ${OUTLINE_API_KEY:-ol_api_947cc499f25ffd2e51649c5a610ba524cd60b8}
+      OUTLINE_API_KEY: ${OUTLINE_API_KEY}
       OUTLINE_INTERNAL_URL: http://raiser-outline:3000
       NEXT_PUBLIC_OUTLINE_URL: https://inotion.00raiser.space
       PERSONA_URL: http://raiser-persona-pipeline:8500
@@ -810,8 +810,7 @@ services:
       NEXTAUTH_URL: "https://jarvis.00raiser.space"
       NEXTAUTH_URL_INTERNAL: "http://localhost:3020"
       NEXTAUTH_SECRET: ${PORTAL_NEXTAUTH_SECRET}
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"
-      OIDC_CLIENT_ID: "3342aa800e1ba4f58ed7a1417a6fd5161c6a6826"
+      OIDC_CLIENT_ID: ${PORTAL_OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${PORTAL_OIDC_CLIENT_SECRET}
       OIDC_ISSUER_URL: "https://auth.00raiser.space/application/o/portal/"
     volumes:
@@ -850,6 +849,7 @@ services:
       CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       CORTEX_URL: http://raiser-cortex:3011
+      CORTEX_API_KEY: ${CORTEX_API_KEY}
       CORTEX_TIMEOUT: '5000'
       YOUTUBEDL_URL: http://raiser-youtubedl:8000
       YOUTUBEDL_API_KEY: ${YOUTUBEDL_API_KEY}

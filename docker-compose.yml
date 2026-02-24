@@ -645,9 +645,9 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - SECRET_KEY=3c2b9de2f61641380d6d9723bf23eb0c97211ea02a4b556d74fffe9fca03284f
-      - UTILS_SECRET=0d64912f0faf0afa27e644bdb8de4deb44ca9668293ef04d1222e150cfe8fa24
-      - DATABASE_URL=postgres://outline:outline@postgres:5432/outline
+      - SECRET_KEY=${OUTLINE_SECRET_KEY}
+      - UTILS_SECRET=${OUTLINE_UTILS_SECRET}
+      - DATABASE_URL=postgres://outline:${OUTLINE_DB_PASSWORD}@postgres:5432/outline
       - REDIS_URL=redis://:bdbb389a97194f746efdd37bafdc46f9fe557777d492d2a1@redis:6379
       - URL=https://inotion.00raiser.space
       - PORT=3000

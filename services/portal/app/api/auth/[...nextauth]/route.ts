@@ -1,34 +1,40 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 
-const issuerUrl = (process.env.OIDC_ISSUER_URL || "https://auth.00raiser.space/application/o/portal/")
-  .replace(/\/+$/, "");
+// External URL (user-facing browser redirects) — env var or fallback
+const authentikExternal = (process.env.AUTHENTIK_EXTERNAL_URL || "https://auth.00raiser.space").replace(/\/+$/, "");
+// Internal URL (server-side fetches from within Docker network)
+const authentikInternal = (process.env.AUTHENTIK_INTERNAL_URL || "http://raiser-authentik-server:9000").replace(/\/+$/, "");
 
-// Extract base (strip /application/o/portal)
-const authentikBase = issuerUrl.replace(/\/application\/o\/[^/]+$/, "");
-
-console.log("NextAuth Config:", {
-  issuerUrl,
-  authentikBase,
-  wellKnown: `${issuerUrl}/.well-known/openid-configuration`,
-  clientId: process.env.OIDC_CLIENT_ID,
-  nodeEnv: process.env.NODE_ENV
-});
+if (process.env.NODE_ENV !== "production") {
+  console.log("NextAuth Config:", {
+    authentikExternal,
+    authentikInternal,
+    clientId: process.env.OIDC_CLIENT_ID,
+    nodeEnv: process.env.NODE_ENV,
+  });
+}
 
 export const authOptions: NextAuthOptions = {
-  debug: process.env.NODE_ENV !== "production",
   providers: [
     {
       id: "authentik",
       name: "Authentik",
       type: "oauth",
-      wellKnown: `${issuerUrl}/.well-known/openid-configuration`,
+      // authorization: external URL (user's browser will be redirected here)
+      authorization: {
+        url: `${authentikExternal}/application/o/authorize/`,
+        params: { scope: "openid email profile" },
+      },
+      // token + userinfo: internal URLs (server-side, no hairpin NAT issues)
+      token: `${authentikInternal}/application/o/token/`,
+      userinfo: `${authentikInternal}/application/o/userinfo/`,
       clientId: process.env.OIDC_CLIENT_ID,
       clientSecret: process.env.OIDC_CLIENT_SECRET,
-      idToken: true,
+      // idToken: false — use userinfo endpoint instead of verifying JWT locally
+      // (avoids needing JWKS URI / issuer discovery)
+      idToken: false,
       checks: ["pkce", "state"],
-      // Override issuer validation since Authentik returns different issuer in well-known vs id_token
-      issuer: authentikBase, // Use the base domain as issuer
       profile(profile) {
         return {
           id: profile.sub,

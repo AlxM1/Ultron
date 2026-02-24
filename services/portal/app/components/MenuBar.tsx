@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Service } from "../services";
-import { Home, Server, Brain, Activity, Workflow, DollarSign, Map } from "lucide-react";
+import { Home, Server, Brain, Activity, Workflow, DollarSign, Map, BookOpen } from "lucide-react";
 
 type PageView = "home" | "services" | "content-intel" | "timeline" | "workflows" | "costs" | "roadmap";
 
@@ -14,12 +14,13 @@ interface MenuBarProps {
 }
 
 const navItems = [
-  { id: "services" as PageView, label: "Services", icon: Server },
-  { id: "timeline" as PageView, label: "Timeline", icon: Activity },
-  { id: "workflows" as PageView, label: "Workflows", icon: Workflow },
-  { id: "content-intel" as PageView, label: "Intel", icon: Brain },
-  { id: "costs" as PageView, label: "Costs", icon: DollarSign },
-  { id: "roadmap" as PageView, label: "Roadmap", icon: Map },
+  { id: "services" as PageView, label: "Services", icon: Server, href: undefined },
+  { id: "timeline" as PageView, label: "Timeline", icon: Activity, href: undefined },
+  { id: "workflows" as PageView, label: "Workflows", icon: Workflow, href: undefined },
+  { id: "content-intel" as PageView, label: "Intel", icon: Brain, href: undefined },
+  { id: "costs" as PageView, label: "Costs", icon: DollarSign, href: undefined },
+  { id: "roadmap" as PageView, label: "Roadmap", icon: Map, href: undefined },
+  { id: "inotion" as PageView, label: "INotion", icon: BookOpen, href: "/inotion" },
 ];
 
 export default function MenuBar({ activeService, activePage = "home", onHome, onNavigate }: MenuBarProps) {
@@ -75,6 +76,16 @@ export default function MenuBar({ activeService, activePage = "home", onHome, on
         {/* Nav items (only when no service active) */}
         {!activeService && onNavigate && navItems.map((item) => {
           const Icon = item.icon;
+          if (item.href) {
+            return (
+              <NavAnchor
+                key={item.id}
+                href={item.href}
+                icon={<Icon size={13} />}
+                label={item.label}
+              />
+            );
+          }
           return (
             <NavButton
               key={item.id}
@@ -207,5 +218,44 @@ function NavButton({
       <span style={{ opacity: active || hov ? 1 : 0.6 }}>{icon}</span>
       {label}
     </button>
+  );
+}
+
+function NavAnchor({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  const [hov, setHov] = useState(false);
+
+  return (
+    <a
+      href={href}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "4px 10px",
+        borderRadius: 6,
+        border: "1px solid transparent",
+        background: hov ? "rgba(74,243,255,0.04)" : "transparent",
+        cursor: "pointer",
+        color: hov ? "#4af3ff" : "rgba(255,255,255,0.5)",
+        fontSize: 12,
+        fontWeight: 400,
+        transition: "all 0.18s ease",
+        textDecoration: "none",
+        letterSpacing: "0.02em",
+      }}
+    >
+      <span style={{ opacity: hov ? 1 : 0.6 }}>{icon}</span>
+      {label}
+    </a>
   );
 }

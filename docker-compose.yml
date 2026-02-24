@@ -648,7 +648,7 @@ services:
       - SECRET_KEY=${OUTLINE_SECRET_KEY}
       - UTILS_SECRET=${OUTLINE_UTILS_SECRET}
       - DATABASE_URL=postgres://outline:${OUTLINE_DB_PASSWORD}@postgres:5432/outline
-      - REDIS_URL=redis://:bdbb389a97194f746efdd37bafdc46f9fe557777d492d2a1@redis:6379
+      - REDIS_URL=redis://:${OUTLINE_REDIS_PASSWORD}@redis:6379
       - URL=https://inotion.00raiser.space
       - PORT=3000
       - FILE_STORAGE=local
@@ -662,7 +662,7 @@ services:
       - DEFAULT_LANGUAGE=en_US
       - ALLOWED_DOMAINS=
       # Authentik OIDC SSO
-      - OIDC_CLIENT_ID=b453a55738707e163a8196184ae2ff64af7adea9
+      - OIDC_CLIENT_ID=${OUTLINE_OIDC_CLIENT_ID}
       - OIDC_CLIENT_SECRET=${OUTLINE_OIDC_CLIENT_SECRET}
       - OIDC_AUTH_URI=https://auth.00raiser.space/application/o/authorize/
       - OIDC_TOKEN_URI=http://raiser-authentik-server:9000/application/o/token/
@@ -801,6 +801,9 @@ services:
       CONTENT_INTEL_INTERNAL_URL: http://raiser-content-intel:3015
       CORTEX_API_KEY: ${CORTEX_API_KEY}
       CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
+      OUTLINE_API_KEY: ${OUTLINE_API_KEY:-ol_api_947cc499f25ffd2e51649c5a610ba524cd60b8}
+      OUTLINE_INTERNAL_URL: http://raiser-outline:3000
+      NEXT_PUBLIC_OUTLINE_URL: https://inotion.00raiser.space
       PERSONA_URL: http://raiser-persona-pipeline:8500
       NEXT_PUBLIC_PICOVOICE_KEY: ${PICOVOICE_KEY:-}
       # Authentik OIDC SSO (NextAuth — ready for when auth is wired into Portal)
@@ -873,6 +876,18 @@ services:
       resources:
         limits:
           memory: 1g
+  searxng:
+    image: searxng/searxng:latest
+    container_name: raiser-searxng
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8888:8080
+    volumes:
+    - /home/eternity/.openclaw/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    networks:
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
 volumes:
   postgres_data: null
   redis_data: null

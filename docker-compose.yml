@@ -668,7 +668,7 @@ services:
         limits:
           memory: 1g
   outline:
-    image: docker.getoutline.com/outlinewiki/outline:0.81.1
+    image: docker.getoutline.com/outlinewiki/outline:0.81.0
     container_name: raiser-outline
     restart: unless-stopped
     environment:

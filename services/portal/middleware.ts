@@ -5,11 +5,11 @@ export const config = {
     /*
      * Match all routes EXCEPT:
      * - /login (sign-in page)
-     * - /api/auth/* (NextAuth endpoints)
-     * - /api/health-check (Docker healthcheck)
+     * - /api/* (all API endpoints — auth handled per-route if needed)
      * - /_next/* (Next.js internals)
      * - /favicon.ico, /public files
+     * - /inotion/* (dashboard pages — public showcase)
      */
-    "/((?!login|api/auth|api/health-check|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.ico).*)",
+    "/((?!login|api/|inotion|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.ico).*)",
   ],
 };

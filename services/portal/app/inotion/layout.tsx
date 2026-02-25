@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "INotion — Knowledge Base",
-  description: "Outline knowledge base dashboard",
+  title: "00Raiser — Operations Portal",
+  description: "One founder. 17 autonomous agents. 24/7 operations.",
 };
 
 export default function INotionLayout({

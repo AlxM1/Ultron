@@ -131,7 +131,7 @@ services:
     volumes:
     - authentik_media:/media
     - authentik_templates:/templates
-    - /var/run/docker.sock:/var/run/docker.sock
+    # docker.sock removed (V-8 security fix) — not needed without outpost deployment
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,7 +165,7 @@ services:
     - authentik_media:/media
     - authentik_templates:/templates
     - authentik_certs:/certs
-    - /var/run/docker.sock:/var/run/docker.sock
+    # docker.sock removed (V-8 security fix) — not needed without outpost deployment
     depends_on:
       postgres:
         condition: service_healthy
@@ -850,6 +850,12 @@ services:
     - /home/eternity/.openclaw/workspace/tools/roadmap.json:/data/roadmap.json:ro
     ports:
     - 0.0.0.0:3020:3020
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3020"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       cortex:
         condition: service_started
@@ -915,6 +921,12 @@ services:
     - 127.0.0.1:8888:8080
     volumes:
     - /home/eternity/.openclaw/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
     - raiser-net
     security_opt:

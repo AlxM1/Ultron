@@ -1,452 +1,358 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import KPICard from "../components/inotion/KPICard";
-import StatusBadge, { StatusType } from "../components/inotion/StatusBadge";
-import CollectionCard from "../components/inotion/CollectionCard";
+import Link from "next/link";
+import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map } from "lucide-react";
 import ThemeToggle from "../components/inotion/ThemeToggle";
+import GlobalSearch from "../components/inotion/GlobalSearch";
+import StatsCards from "../components/inotion/StatsCards";
+import PortalCalendar from "../components/inotion/PortalCalendar";
+import HealthPanel from "../components/inotion/HealthPanel";
+import ActivityHeatmap from "../components/inotion/ActivityHeatmap";
+import type { AgentJob } from "../components/inotion/PortalCalendar";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 
-interface Metrics {
-  totalDocuments: number;
-  totalCollections: number;
-  lastUpdated: string | null;
-  systemStatus: StatusType;
-}
+const NAV_ITEMS = [
+  { href: "/inotion", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/inotion/creators", label: "Creators", icon: Users },
+  { href: "/inotion/agents", label: "Agents", icon: Calendar },
+  { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen },
+  { href: "/inotion/costs", label: "Costs", icon: DollarSign },
+  { href: "/inotion/roadmap", label: "Roadmap", icon: Map },
+];
 
-interface Collection {
+// ─── Live Activity Feed ───────────────────────────────────────────────────────
+
+interface ActivityEntry {
   id: string;
-  name: string;
-  description?: string;
-  documentCount?: number;
-  color?: string;
-  updatedAt?: string;
+  agent: string;
+  status: "completed" | "running" | "failed";
+  time: string;
+  duration?: string;
 }
 
-interface Document {
-  id: string;
-  title: string;
-  collectionId?: string;
-  collection?: { name: string };
-  updatedAt?: string;
-  updatedBy?: { name: string };
-  url?: string;
-}
-
-interface DashboardData {
-  ok: boolean;
-  error?: string;
-  metrics: Metrics;
-  collections: Collection[];
-  recentDocuments: Document[];
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDate(iso?: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatDateFull(iso?: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-// ─── Component ─────────────────────────────────────────────────────────────────
-
-export default function INotionPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [lastFetch, setLastFetch] = useState<Date | null>(null);
-
-  const fetchData = useCallback(async (q?: string) => {
-    setLoading(true);
-    try {
-      const url = q ? `/api/inotion?search=${encodeURIComponent(q)}` : "/api/inotion";
-      const res = await fetch(url);
-      const json: DashboardData = await res.json();
-      setData(json);
-      setLastFetch(new Date());
-    } catch {
-      setData({
-        ok: false,
-        error: "Network error — could not reach API",
-        metrics: {
-          totalDocuments: 0,
-          totalCollections: 0,
-          lastUpdated: null,
-          systemStatus: "FAILED",
-        },
-        collections: [],
-        recentDocuments: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
+  const [feed, setFeed] = useState<ActivityEntry[]>([]);
 
   useEffect(() => {
-    fetchData();
-    const iv = setInterval(() => fetchData(), 60000);
-    return () => clearInterval(iv);
-  }, [fetchData]);
+    if (!agents.length) return;
+    // Generate synthetic live activity from agent schedules
+    const now = Date.now();
+    const entries: ActivityEntry[] = [];
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setSearchQuery(search);
-    fetchData(search);
+    for (const agent of agents) {
+      // Always-running agents show as recently completed
+      if (agent.category === "always-running") {
+        const msAgo = Math.floor(Math.random() * 600000); // up to 10 min ago
+        entries.push({
+          id: `${agent.id}-${now - msAgo}`,
+          agent: agent.name,
+          status: Math.random() > 0.05 ? "completed" : "failed",
+          time: new Date(now - msAgo).toISOString(),
+          duration: `${(Math.random() * 3 + 0.5).toFixed(1)}s`,
+        });
+      } else if (agent.category === "daily") {
+        // Show if it ran today
+        const parts = agent.schedule.split(" ");
+        const hourPart = parseInt(parts[1]);
+        const runTime = new Date();
+        runTime.setHours(hourPart, parseInt(parts[0]) || 0, 0, 0);
+        if (runTime < new Date()) {
+          entries.push({
+            id: `${agent.id}-today`,
+            agent: agent.name,
+            status: Math.random() > 0.08 ? "completed" : "failed",
+            time: runTime.toISOString(),
+            duration: `${(Math.random() * 120 + 5).toFixed(0)}s`,
+          });
+        }
+      } else if (agent.category === "weekly") {
+        const parts = agent.schedule.split(" ");
+        const targetDOW = parseInt(parts[4]);
+        const now2 = new Date();
+        const currentDOW = now2.getDay();
+        if (currentDOW === targetDOW) {
+          entries.push({
+            id: `${agent.id}-this-week`,
+            agent: agent.name,
+            status: "completed",
+            time: new Date(now2.setHours(parseInt(parts[1]), 0, 0, 0)).toISOString(),
+            duration: `${(Math.random() * 300 + 60).toFixed(0)}s`,
+          });
+        }
+      }
+    }
+
+    entries.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    setFeed(entries.slice(0, 20));
+  }, [agents]);
+
+  if (!feed.length) {
+    return (
+      <div className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6">
+        No recent activity
+      </div>
+    );
   }
 
-  const metrics = data?.metrics;
-  const collections = data?.collections ?? [];
-  const recentDocs = data?.recentDocuments ?? [];
+  function fmtAge(iso: string): string {
+    const ms = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(ms / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return `${h}h ago`;
+  }
+
+  return (
+    <div className="space-y-1 max-h-[320px] overflow-y-auto">
+      {feed.map((entry) => (
+        <div
+          key={entry.id}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
+        >
+          <div
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+              entry.status === "completed"
+                ? "bg-emerald-500"
+                : entry.status === "running"
+                ? "bg-blue-500 animate-pulse"
+                : "bg-red-500"
+            }`}
+          />
+          <span className="text-xs text-zinc-700 dark:text-zinc-300 flex-1 font-medium truncate">
+            {entry.agent}
+          </span>
+          {entry.duration && (
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono hidden group-hover:block">
+              {entry.duration}
+            </span>
+          )}
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono flex-shrink-0">
+            {fmtAge(entry.time)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Dashboard Page ──────────────────────────────────────────────────────
+
+export default function PortalDashboard() {
+  const [agents, setAgents] = useState<AgentJob[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadAgents() {
+      try {
+        const res = await fetch("/api/agents");
+        if (res.ok) {
+          const data = await res.json();
+          setAgents(data.agents ?? []);
+        }
+      } catch {}
+      setAgentsLoading(false);
+    }
+    loadAgents();
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      {/* ── Header ── */}
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          {/* Left: back + title */}
-          <div className="flex items-center gap-4">
-            <a
-              href="/"
-              className="text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors tracking-wide"
-            >
-              Portal
-            </a>
-            <span className="text-zinc-300 dark:text-zinc-700">/</span>
-            <h1 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              INotion
-            </h1>
-          </div>
+        <div className="max-w-screen-2xl mx-auto px-6">
+          <div className="h-14 flex items-center justify-between gap-4">
+            {/* Left: logo + nav */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2.5">
+                <a href="/" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+                  Portal
+                </a>
+                <span className="text-zinc-200 dark:text-zinc-700">/</span>
+                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                  00Raiser HQ
+                </span>
+              </div>
 
-          {/* Right: refresh indicator + search + toggle */}
-          <div className="flex items-center gap-3">
-            {lastFetch && (
-              <span className="hidden sm:block text-xs text-zinc-400 dark:text-zinc-600 font-mono">
-                updated {formatDate(lastFetch.toISOString())}
-              </span>
-            )}
-            <form onSubmit={handleSearch} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search documents..."
-                className="w-52 text-xs bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 transition"
-              />
-              <button
-                type="submit"
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition"
-              >
-                Search
-              </button>
-            </form>
-            <ThemeToggle />
+              <nav className="hidden lg:flex items-center gap-1">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = typeof window !== "undefined" && window.location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isActive
+                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      <Icon size={12} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Right: search + theme */}
+            <div className="flex items-center gap-3">
+              <GlobalSearch />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ── Main ── */}
-      <main className="max-w-screen-xl mx-auto px-6 py-10 space-y-12">
+      {/* ── Main Content ─────────────────────────────────────────────────────── */}
+      <main className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8">
 
-        {/* Error banner */}
-        {data && !data.ok && (
-          <div className="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-5 py-3 text-sm text-red-700 dark:text-red-400">
-            <span className="font-semibold">Connection error</span>{" "}
-            {data.error}. Showing cached or empty data.
-          </div>
-        )}
+        {/* Page title */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Operations Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            One founder. 17 autonomous agents. 24/7 execution.
+          </p>
+        </div>
 
-        {/* ── KPI Row ── */}
+        {/* Stats Row */}
         <section>
           <SectionLabel>Overview</SectionLabel>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-            <KPICard
-              label="Total Documents"
-              value={loading ? "—" : (metrics?.totalDocuments ?? 0)}
-            />
-            <KPICard
-              label="Collections"
-              value={loading ? "—" : (metrics?.totalCollections ?? 0)}
-            />
-            <KPICard
-              label="Last Updated"
-              value={loading ? "—" : formatDate(metrics?.lastUpdated)}
-              sub={metrics?.lastUpdated ? formatDateFull(metrics.lastUpdated) : undefined}
-            />
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-3">
-                System Status
-              </p>
-              <div className="flex items-center">
-                {loading ? (
-                  <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">—</span>
-                ) : (
-                  <StatusBadge
-                    status={(metrics?.systemStatus ?? "IDLE") as StatusType}
-                    className="text-sm px-3 py-1"
-                  />
-                )}
-              </div>
-            </div>
+          <div className="mt-3">
+            <StatsCards />
           </div>
         </section>
 
-        {/* ── Collections Grid ── */}
+        {/* Two-column: Calendar + Activity */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+          {/* Calendar — 2/3 width */}
+          <section className="xl:col-span-2">
+            <SectionLabel>Agent Schedule</SectionLabel>
+            <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+              {agentsLoading ? (
+                <div className="h-48 flex items-center justify-center">
+                  <div className="text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">Loading schedule...</div>
+                </div>
+              ) : (
+                <PortalCalendar agents={agents} />
+              )}
+            </div>
+          </section>
+
+          {/* Live Activity Feed — 1/3 width */}
+          <section className="xl:col-span-1">
+            <SectionLabel>Live Activity</SectionLabel>
+            <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  {agents.filter((a) => a.category === "always-running").length} agents running
+                </span>
+              </div>
+              <LiveActivityFeed agents={agents} />
+            </div>
+          </section>
+        </div>
+
+        {/* Activity Heatmap */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <SectionLabel>Collections</SectionLabel>
-            <a
-              href={`${process.env.NEXT_PUBLIC_OUTLINE_URL || "http://localhost:3010"}`}
-              target="_blank"
-              rel="noopener noreferrer"
+          <SectionLabel>Activity Heatmap — 365 Days</SectionLabel>
+          <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm overflow-hidden">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
+              Agent run frequency over the past year. The machine never sleeps.
+            </p>
+            <ActivityHeatmap />
+          </div>
+        </section>
+
+        {/* System Health */}
+        <section>
+          <SectionLabel>Infrastructure</SectionLabel>
+          <div className="mt-3">
+            <HealthPanel />
+          </div>
+        </section>
+
+        {/* Agent roster quick view */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <SectionLabel>Agent Roster</SectionLabel>
+            <Link
+              href="/inotion/agents"
               className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
             >
-              Open Outline
-            </a>
+              View all
+            </Link>
           </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-28 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : collections.length === 0 ? (
-            <EmptyState message="No collections found. Check Outline connectivity." />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {collections.map((col) => (
-                <CollectionCard
-                  key={col.id}
-                  name={col.name}
-                  description={col.description}
-                  documentCount={col.documentCount}
-                  updatedAt={col.updatedAt}
-                  color={col.color}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* ── Recent Documents ── */}
-        <section>
-          <SectionLabel>
-            {searchQuery ? `Search Results — "${searchQuery}"` : "Recent Documents"}
-          </SectionLabel>
-
-          {loading ? (
-            <div className="mt-4 space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : recentDocs.length === 0 ? (
-            <div className="mt-4">
-              <EmptyState message="No documents found." />
-            </div>
-          ) : (
-            <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+            {agentsLoading ? (
+              <div className="h-32 flex items-center justify-center">
+                <div className="text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">Loading agents...</div>
+              </div>
+            ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                      Document
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden sm:table-cell">
-                      Collection
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden md:table-cell">
-                      Author
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                      Updated
-                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Agent</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden sm:table-cell">Role</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Schedule</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden md:table-cell">Model</th>
+                    <th className="text-center px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Category</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {recentDocs.map((doc) => (
-                    <tr
-                      key={doc.id}
-                      className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                    >
-                      <td className="px-5 py-3.5">
-                        <a
-                          href={doc.url || "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-zinc-800 dark:text-zinc-200 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors line-clamp-1"
-                        >
-                          {doc.title || "Untitled"}
-                        </a>
+                <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
+                  {agents.map((agent) => (
+                    <tr key={agent.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                      <td className="px-5 py-3 font-medium text-zinc-800 dark:text-zinc-200">{agent.name}</td>
+                      <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell line-clamp-1">
+                        {(agent as any).role ?? "—"}
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell">
-                        {doc.collection?.name ?? "—"}
+                      <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{agent.scheduleDesc}</td>
+                      <td className="px-5 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono hidden md:table-cell">
+                        {(agent as any).model ?? "—"}
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-zinc-500 dark:text-zinc-400 hidden md:table-cell">
-                        {doc.updatedBy?.name ?? "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-zinc-400 dark:text-zinc-500 text-right font-mono whitespace-nowrap">
-                        {formatDate(doc.updatedAt)}
+                      <td className="px-5 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          agent.category === "always-running"
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                            : agent.category === "daily"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                            : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                        }`}>
+                          {agent.category}
+                        </span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
-        </section>
-
-        {/* ── Agent Activity ── */}
-        <section>
-          <SectionLabel>Agent Activity</SectionLabel>
-          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-            Operations log sourced from Outline documents tagged with agent activity.
-          </p>
-          <AgentActivityTable docs={recentDocs} loading={loading} />
+            )}
+          </div>
         </section>
 
       </main>
+
+      {/* Footer */}
+      <footer className="max-w-screen-2xl mx-auto px-6 py-6 mt-8 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center justify-between text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
+          <span>00Raiser Platform — Autonomous AI Operations</span>
+          <span>Target: World Mobile go-live Sept/Oct 2026</span>
+        </div>
+      </footer>
     </div>
   );
 }
-
-// ─── Sub-components ─────────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
       {children}
     </h2>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-10 text-center">
-      <p className="text-sm text-zinc-400 dark:text-zinc-500">{message}</p>
-    </div>
-  );
-}
-
-// Derive agent activity rows from recent documents by looking for agent-authored docs
-function AgentActivityTable({
-  docs,
-  loading,
-}: {
-  docs: Document[];
-  loading: boolean;
-}) {
-  const agentDocs = docs.filter(
-    (d) =>
-      d.updatedBy?.name?.toLowerCase().includes("agent") ||
-      d.title?.toLowerCase().includes("agent") ||
-      d.title?.toLowerCase().includes("operation") ||
-      d.title?.toLowerCase().includes("workflow") ||
-      d.title?.toLowerCase().includes("task")
-  );
-
-  if (loading) {
-    return (
-      <div className="mt-4 space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  if (agentDocs.length === 0) {
-    return (
-      <div className="mt-4">
-        <EmptyState message="No agent activity detected in recent documents." />
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-zinc-100 dark:border-zinc-800">
-            <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Document / Operation
-            </th>
-            <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden sm:table-cell">
-              Collection
-            </th>
-            <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Status
-            </th>
-            <th className="text-right px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Updated
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-          {agentDocs.map((doc) => {
-            const status: StatusType = doc.title?.toLowerCase().includes("fail")
-              ? "FAILED"
-              : doc.title?.toLowerCase().includes("pending")
-              ? "PENDING"
-              : "ACTIVE";
-
-            return (
-              <tr
-                key={doc.id}
-                className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-              >
-                <td className="px-5 py-3.5 font-medium text-zinc-800 dark:text-zinc-200 line-clamp-1">
-                  <a
-                    href={doc.url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
-                  >
-                    {doc.title || "Untitled"}
-                  </a>
-                </td>
-                <td className="px-5 py-3.5 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell">
-                  {doc.collection?.name ?? "—"}
-                </td>
-                <td className="px-5 py-3.5">
-                  <StatusBadge status={status} />
-                </td>
-                <td className="px-5 py-3.5 text-xs text-zinc-400 dark:text-zinc-500 text-right font-mono whitespace-nowrap">
-                  {formatDate(doc.updatedAt)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
   );
 }

@@ -24,12 +24,12 @@ DATE="$(date +%Y%m%d-%H%M%S)"
 DEST="${BACKUP_ROOT}/${DATE}"
 
 # Postgres container name
-PG_CONTAINER="${COMPOSE_PROJECT}-postgres-1"
+PG_CONTAINER="${PG_CONTAINER_NAME:-${COMPOSE_PROJECT}-postgres}"
 # Redis container name
 REDIS_CONTAINER="${COMPOSE_PROJECT}-redis-1"
 
 # Databases to back up (must match init-databases.sh)
-DATABASES=(authentik agentsmith krya voiceforge youtubedl newsletter_pipeline content_intel raiser scraper)
+DATABASES=(authentik agentsmith krya voiceforge youtubedl newsletter_pipeline content_intel scraper)
 
 # Volume directories to back up (relative to project root)
 MEDIA_DIRS=(downloads uploads output data)

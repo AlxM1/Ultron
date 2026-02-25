@@ -119,7 +119,36 @@ curl -X POST http://localhost:4000/webhooks/content-pipeline \
   }'
 ```
 
-### 7. Database Setup (Required)
+### 7. Database Migrations (Auto-applied on fresh deploys)
+
+SQL migrations live in `./migrations/` and are **automatically applied** during
+`init-databases.sh` on any fresh Postgres volume (i.e. first `docker compose up`
+after `docker volume rm raiser_postgres_data`).
+
+The migration runner loops through all `*.sql` files in `./migrations/` in sorted
+(date-prefixed) order and executes them as the Postgres superuser. Each migration
+uses `IF NOT EXISTS` / `DO … EXCEPTION` guards so re-running is safe.
+
+**Current migrations:**
+| File | Purpose |
+|------|---------|
+| `2026-02-22-fixes.sql` | AgentSmith `scheduled_triggers` table + `webhooks.updated_at` column; Krya full schema bootstrap |
+
+**Running migrations manually on a live database:**
+```bash
+# Replace raiser-postgres / postgres with your container name / superuser
+docker exec -i raiser-postgres \
+  psql -U postgres -d postgres \
+  -f /dev/stdin < migrations/2026-02-22-fixes.sql
+```
+
+> ⚠️ **Required for AgentSmith**: without `scheduled_triggers`, the QueueService
+> crashes on start. Always run migrations after restoring from backup or when
+> setting up a new environment.
+
+---
+
+### 7b. Database Setup (Required)
 
 Create the required tables for workflows:
 

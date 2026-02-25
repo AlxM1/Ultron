@@ -103,4 +103,44 @@ create_db_and_user \
     "content_intel" \
     "${CONTENT_INTEL_DB_PASSWORD:?CONTENT_INTEL_DB_PASSWORD is required}"
 
+create_db_and_user \
+    "outline" \
+    "outline" \
+    "${OUTLINE_DB_PASSWORD:?OUTLINE_DB_PASSWORD is required}"
+
 log "All databases initialised successfully."
+
+# ---------------------------------------------------------------------------
+# Run SQL migrations from the migrations directory
+# Files are executed in sorted (alphabetical) order so date-prefixed names
+# like 2026-02-22-fixes.sql apply in the correct sequence.
+# Each migration file may use \connect to target specific databases.
+# This block is idempotent: all migration SQL uses IF NOT EXISTS / DO guards.
+# ---------------------------------------------------------------------------
+run_migrations() {
+    local migrations_dir="/docker-entrypoint-initdb.d/migrations"
+
+    if [ ! -d "$migrations_dir" ]; then
+        log "Migrations directory not found at $migrations_dir — skipping migration step."
+        log "  (Mount ./migrations:/docker-entrypoint-initdb.d/migrations:ro in docker-compose.yml to enable.)"
+        return 0
+    fi
+
+    # Collect .sql files sorted by name (POSIX sort = alphabetical = date order)
+    local found=0
+    for migration in $(find "$migrations_dir" -maxdepth 1 -name "*.sql" | sort); do
+        found=1
+        log "Applying migration: $(basename "$migration") ..."
+        psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+            -f "$migration"
+        log "  -> $(basename "$migration") applied."
+    done
+
+    if [ "$found" -eq 0 ]; then
+        log "No .sql migration files found in $migrations_dir — nothing to do."
+    else
+        log "All migrations applied successfully."
+    fi
+}
+
+run_migrations

@@ -31,11 +31,13 @@ services:
       AFFINE_DB_PASSWORD: ${AFFINE_DB_PASSWORD}
       CORTEX_DB_PASSWORD: ${CORTEX_DB_PASSWORD}
       CONTENT_INTEL_DB_PASSWORD: ${CONTENT_INTEL_DB_PASSWORD}
+      OUTLINE_DB_PASSWORD: ${OUTLINE_DB_PASSWORD}
     ports:
     - 127.0.0.1:5432:5432
     volumes:
     - postgres_data:/var/lib/postgresql/data
     - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    - ./migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test:
       - CMD-SHELL
@@ -472,9 +474,7 @@ services:
         limits:
           memory: 1g
   voiceforge:
-    build:
-      context: ./services/voiceforge/voiceforge
-      dockerfile: docker/Dockerfile.backend
+    image: voiceforge-backend-patched:latest
     container_name: raiser-voiceforge
     restart: unless-stopped
     environment:
@@ -658,7 +658,7 @@ services:
         limits:
           memory: 1g
   outline:
-    image: docker.getoutline.com/outlinewiki/outline:latest
+    image: docker.getoutline.com/outlinewiki/outline:0.81.1
     container_name: raiser-outline
     restart: unless-stopped
     environment:

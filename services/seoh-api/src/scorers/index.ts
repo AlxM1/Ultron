@@ -48,12 +48,7 @@ export async function runAudit(url: string): Promise<AuditResult> {
   const schema_readiness = scoreSchemaReadiness($);
   const eeat_signals = scoreEeatSignals($, url, text);
   const content_structure = scoreContentStructure($);
-  const platform_visibility = scorePlatformVisibility({
-    ai_citability: ai_citability.score,
-    schema_readiness: schema_readiness.score,
-    eeat_signals: eeat_signals.score,
-    content_structure: content_structure.score,
-  });
+  const platform_visibility = await scorePlatformVisibility($, url, text);
 
   // Overall score: weighted average
   const overall_score = Math.round(

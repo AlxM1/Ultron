@@ -942,6 +942,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
+      SEARXNG_URL: http://raiser-searxng:8080
     ports:
     - 127.0.0.1:3016:3016
     healthcheck:

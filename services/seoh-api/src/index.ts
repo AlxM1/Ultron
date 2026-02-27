@@ -1,6 +1,7 @@
 import express from 'express';
 import { auditRouter } from './routes/audit';
 import { fullAuditRouter } from './routes/full-audit';
+import { fixesRouter } from './routes/fixes';
 import { initDb } from './db/pool';
 
 const app = express();
@@ -14,6 +15,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/audit', auditRouter);
+app.use('/api/audit', fixesRouter);
 app.use('/api/audit/full', fullAuditRouter);
 
 async function start() {

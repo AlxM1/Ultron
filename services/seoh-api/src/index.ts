@@ -3,6 +3,8 @@ import { auditRouter } from './routes/audit';
 import { fullAuditRouter } from './routes/full-audit';
 import { fixesRouter } from './routes/fixes';
 import { compareRouter } from './routes/compare';
+import { historyRouter } from './routes/history';
+import { trackRouter } from './routes/track';
 import { initDb } from './db/pool';
 
 const app = express();
@@ -19,6 +21,8 @@ app.use('/api/audit', auditRouter);
 app.use('/api/audit', fixesRouter);
 app.use('/api/audit/full', fullAuditRouter);
 app.use('/api/audit', compareRouter);
+app.use('/api/audit', historyRouter);
+app.use('/api/audit', trackRouter);
 
 async function start() {
   try {

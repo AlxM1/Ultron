@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map, Radar, BarChart3, Brain, UserCircle, GitCompare } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map, Radar, BarChart3, Brain, UserCircle, GitCompare, History } from "lucide-react";
 import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
 import GlobalSearch from "../components/inotion/GlobalSearch";
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/inotion/roadmap", label: "Roadmap", icon: Map },
   { href: "/inotion/audit", label: "SEO Audit", icon: Radar },
   { href: "/inotion/audit/compare", label: "Compare Sites", icon: GitCompare },
+  { href: "/inotion/audit/history", label: "Score History", icon: History },
   { href: "/inotion/personas", label: "All Personas", icon: UserCircle },
   { href: "/inotion/personas/board", label: "Board of Directors", icon: Brain },
 ];

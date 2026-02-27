@@ -34,4 +34,13 @@ export async function initDb(): Promise<void> {
     );
   `);
   console.log('[db] seoh_comparisons table ready');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS seoh_tracked_domains (
+      domain TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      last_audited TIMESTAMPTZ
+    );
+  `);
+  console.log('[db] seoh_tracked_domains table ready');
 }

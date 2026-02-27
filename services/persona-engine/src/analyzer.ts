@@ -1,5 +1,17 @@
 import pool from './db.js';
 
+// Maps a creator to additional creator IDs whose transcripts should be included
+// in their persona profile. Key = creator name (case-insensitive match),
+// Value = array of associated creator IDs.
+// Jason Calacanis (23) also gets TWIST (21) + All-In (22)
+// Chamath Palihapitiya (26) also gets All-In (22)
+// David Sacks (27) also gets All-In (22)
+const CREATOR_ASSOCIATIONS: Record<string, number[]> = {
+  'jason calacanis': [21, 22],      // TWIST + All-In Podcast
+  'chamath palihapitiya': [22],      // All-In Podcast
+  'david sacks': [22],              // All-In Podcast
+};
+
 export interface PersonaProfile {
   creator_id: number;
   creator_name: string;
@@ -85,12 +97,14 @@ export async function buildProfile(creatorName: string): Promise<PersonaProfile 
   if (creatorRes.rows.length === 0) return null;
   const creator = creatorRes.rows[0];
 
-  // Get all transcripts
+  // Get all transcripts (including associated creators like co-hosted podcasts)
+  const associatedIds = CREATOR_ASSOCIATIONS[creator.name.toLowerCase()] || [];
+  const allCreatorIds = [creator.id, ...associatedIds];
   const transcriptRes = await pool.query(
     `SELECT t.text FROM transcripts t
      JOIN content c ON c.id = t.content_id
-     WHERE c.creator_id = $1 AND t.text IS NOT NULL AND LENGTH(t.text) > 100`,
-    [creator.id]
+     WHERE c.creator_id = ANY($1) AND t.text IS NOT NULL AND LENGTH(t.text) > 100`,
+    [allCreatorIds]
   );
   if (transcriptRes.rows.length === 0) return null;
 

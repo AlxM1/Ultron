@@ -940,17 +940,18 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3017'
-      DB_HOST: postgres
+      DB_HOST: localhost
       DB_PORT: '5432'
       DB_NAME: content_intel
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-    - 0.0.0.0:3017:3017
+      OLLAMA_URL: http://localhost:11434
+      OLLAMA_MODEL: llama3
+    network_mode: host
     healthcheck:
       test:
       - CMD-SHELL
-      - wget -qO- http://localhost:3017/health || exit 1
+      - node -e "require('http').get('http://localhost:3017/health',r=>{process.exit(r.statusCode<400?0:1)}).on('error',()=>process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -958,8 +959,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-    - raiser-net
     security_opt:
     - no-new-privileges:true
     cap_drop:
@@ -989,7 +988,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - wget -qO- http://localhost:3016/api/health || exit 1
+      - node -e "require('http').get('http://localhost:3016/api/health',r=>{process.exit(r.statusCode<400?0:1)}).on('error',()=>process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1072,7 +1071,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - wget -qO- http://127.0.0.1:3001/ || exit 1
+      - curl -sf http://127.0.0.1:3001/ || exit 1
       interval: 60s
       timeout: 5s
       retries: 3
@@ -1098,7 +1097,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - wget -qO- http://127.0.0.1:8080/api/v1/info/status || exit 1
+      - curl -sf http://127.0.0.1:8080/api/v1/info/status || exit 1
       interval: 60s
       timeout: 5s
       retries: 3
@@ -1264,7 +1263,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - wget -qO- http://127.0.0.1:3000/ || exit 1
+      - node -e "require('http').get('http://127.0.0.1:3000/',r=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
       interval: 60s
       timeout: 10s
       retries: 3

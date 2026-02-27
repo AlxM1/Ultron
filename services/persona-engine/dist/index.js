@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from './db.js';
 import { buildProfile, saveProfile, getProfile, getAllCreators } from './analyzer.js';
+import { queryPersona, queryBoard } from './llm.js';
 const app = express();
 app.use(express.json());
 const PORT = parseInt(process.env.PORT || '3017');
@@ -82,15 +83,13 @@ app.post('/api/persona/:creator_name/query', async (req, res) => {
             }
             await saveProfile(profile);
         }
-        // For now: return relevant quotes and topic alignment
-        const questionWords = question.toLowerCase().split(/\s+/);
-        const relevantQuotes = profile.key_quotes.filter((q) => questionWords.some((w) => w.length > 3 && q.toLowerCase().includes(w))).slice(0, 5);
+        const result = await queryPersona(profile, question);
         res.json({
             creator: profile.creator_name,
             question,
-            response: {
-                note: 'LLM-powered persona responses coming in phase 2. Current: text analysis results.',
-                relevant_quotes: relevantQuotes,
+            response: result.text,
+            source: result.source,
+            profile_summary: {
                 top_topics: profile.top_topics.slice(0, 5),
                 communication_style: profile.communication_style,
                 catchphrases: profile.vocabulary_patterns.catchphrases,
@@ -108,36 +107,21 @@ app.post('/api/persona/board', async (req, res) => {
         if (!question) {
             return res.status(400).json({ error: 'question is required' });
         }
-        const perspectives = [];
-        for (const member of BOARD_MEMBERS) {
+        // Load all profiles in parallel
+        const profileEntries = await Promise.all(BOARD_MEMBERS.map(async (member) => {
             let profile = await getProfile(member);
             if (!profile) {
                 profile = await buildProfile(member);
                 if (profile)
                     await saveProfile(profile);
             }
-            if (profile) {
-                const questionWords = question.toLowerCase().split(/\s+/);
-                const relevantQuotes = profile.key_quotes.filter((q) => questionWords.some((w) => w.length > 3 && q.toLowerCase().includes(w))).slice(0, 3);
-                perspectives.push({
-                    member: profile.creator_name,
-                    transcript_count: profile.transcript_count,
-                    top_topics: profile.top_topics.slice(0, 3),
-                    relevant_quotes: relevantQuotes,
-                    style: profile.communication_style,
-                });
-            }
-            else {
-                perspectives.push({
-                    member,
-                    error: 'No transcripts available for this board member',
-                });
-            }
-        }
+            return { member, profile: profile };
+        }));
+        const result = await queryBoard(profileEntries, question);
         res.json({
             question,
-            board_perspectives: perspectives,
-            note: 'LLM-powered synthesized responses coming in phase 2.',
+            board_perspectives: result.perspectives,
+            consensus: result.consensus,
         });
     }
     catch (err) {

@@ -17,4 +17,4 @@ USER nodejs
 
 EXPOSE 3017
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "--max-old-space-size=1024", "dist/index.js"]

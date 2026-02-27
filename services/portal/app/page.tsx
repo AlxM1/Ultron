@@ -42,6 +42,11 @@ export default function Home() {
   const activeService = services.find((s) => s.id === activeApp) ?? null;
 
   function handleAppSelect(id: string) {
+    if (id === "dashboard") {
+      setActiveApp(null);
+      setActivePage("home");
+      return;
+    }
     if (id === activeApp) {
       setActiveApp(null);
       return;

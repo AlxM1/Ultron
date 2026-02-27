@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Service } from "../services";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Service, dockServices, categorizedServices, serviceCategories } from "../services";
 
 interface DockProps {
   services: Service[];
@@ -12,11 +12,13 @@ interface DockProps {
 
 const BASE_SIZE = 52;
 const MAX_SIZE = 80;
-const MAGNIFY_RADIUS = 120; // px radius for magnification effect
+const MAGNIFY_RADIUS = 120;
 
-export default function Dock({ services, activeApp, onSelect, healthStatus }: DockProps) {
+export default function Dock({ services: _allServices, activeApp, onSelect, healthStatus }: DockProps) {
   const [mouseX, setMouseX] = useState<number | null>(null);
+  const [folderOpen, setFolderOpen] = useState(false);
   const dockRef = useRef<HTMLDivElement>(null);
+  const folderRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     setMouseX(e.clientX);
@@ -26,15 +28,52 @@ export default function Dock({ services, activeApp, onSelect, healthStatus }: Do
     setMouseX(null);
   }, []);
 
-  // Compute scale for each item based on mouse distance
-  const getScale = (itemX: number, itemW: number) => {
-    if (mouseX === null) return 1;
-    const center = itemX + itemW / 2;
-    const dist = Math.abs(mouseX - center);
-    if (dist > MAGNIFY_RADIUS) return 1;
-    const factor = 1 - dist / MAGNIFY_RADIUS;
-    return 1 + factor * ((MAX_SIZE / BASE_SIZE) - 1);
+  // Close folder on outside click
+  useEffect(() => {
+    if (!folderOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        folderRef.current && !folderRef.current.contains(e.target as Node) &&
+        dockRef.current && !dockRef.current.contains(e.target as Node)
+      ) {
+        setFolderOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [folderOpen]);
+
+  // Build dock items: dashboard, inotion, seoh-audit, services-folder, settings
+  const servicesFolderItem: Service = {
+    id: "services-folder",
+    name: "Services",
+    icon: "📂",
+    description: "All services",
   };
+
+  const dockItems = [
+    ...dockServices.filter((s) => s.id !== "settings"),
+    servicesFolderItem,
+    ...dockServices.filter((s) => s.id === "settings"),
+  ];
+
+  function handleDockSelect(id: string) {
+    if (id === "services-folder") {
+      setFolderOpen(!folderOpen);
+      return;
+    }
+    if (id === "dashboard") {
+      onSelect("dashboard");
+      return;
+    }
+    setFolderOpen(false);
+    onSelect(id);
+  }
+
+  const grouped = serviceCategories.map((cat) => ({
+    name: cat,
+    items: categorizedServices.filter((s) => s.category === cat),
+  }));
 
   return (
     <div
@@ -46,6 +85,116 @@ export default function Dock({ services, activeApp, onSelect, healthStatus }: Do
         zIndex: 50,
       }}
     >
+      {/* Services folder popover */}
+      {folderOpen && (
+        <div
+          ref={folderRef}
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            background: "rgba(0, 8, 20, 0.88)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(74, 243, 255, 0.15)",
+            borderRadius: 16,
+            padding: "20px 24px",
+            boxShadow: `
+              0 12px 60px rgba(0, 0, 0, 0.8),
+              0 0 0 1px rgba(74, 243, 255, 0.05) inset,
+              0 0 40px rgba(74, 243, 255, 0.06)
+            `,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 190px)",
+            gap: "16px 24px",
+            maxHeight: "60vh",
+            overflowY: "auto",
+          }}
+        >
+          {/* Top glow */}
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: "20%",
+            right: "20%",
+            height: 1,
+            background: "linear-gradient(to right, transparent, rgba(74,243,255,0.3), transparent)",
+            borderRadius: 1,
+          }} />
+
+          {grouped.map((group) => (
+            <div key={group.name}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "rgba(74, 243, 255, 0.5)",
+                  marginBottom: 8,
+                  fontFamily: "'SF Mono', monospace",
+                }}
+              >
+                {group.name}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {group.items.map((svc) => {
+                  const isOnline = healthStatus[svc.id];
+                  return (
+                    <button
+                      key={svc.id}
+                      onClick={() => {
+                        onSelect(svc.id);
+                        setFolderOpen(false);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "6px 8px",
+                        background: "transparent",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        color: "rgba(255,255,255,0.85)",
+                        fontSize: 13,
+                        fontFamily: "'SF Pro Text', -apple-system, sans-serif",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        width: "100%",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "rgba(74,243,255,0.08)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      <span style={{ fontSize: 16, lineHeight: 1 }}>{svc.icon}</span>
+                      <span style={{ flex: 1 }}>{svc.name}</span>
+                      {svc.healthUrl && (
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: isOnline ? "#22c55e" : "rgba(239,68,68,0.6)",
+                            boxShadow: isOnline ? "0 0 4px #22c55e" : "none",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Dock container */}
       <div
         ref={dockRef}
@@ -80,8 +229,8 @@ export default function Dock({ services, activeApp, onSelect, healthStatus }: Do
           borderRadius: 1,
         }} />
 
-        {services.map((service, idx) => {
-          const isActive = activeApp === service.id;
+        {dockItems.map((service, idx) => {
+          const isActive = service.id === "services-folder" ? folderOpen : activeApp === service.id;
           const isOnline = healthStatus[service.id];
 
           return (
@@ -92,7 +241,8 @@ export default function Dock({ services, activeApp, onSelect, healthStatus }: Do
               isOnline={isOnline}
               mouseX={mouseX}
               index={idx}
-              onSelect={onSelect}
+              onSelect={handleDockSelect}
+              hideHealth={service.id === "settings" || service.id === "services-folder" || service.id === "dashboard" || service.id === "seoh-audit"}
             />
           );
         })}
@@ -108,6 +258,7 @@ function DockItem({
   mouseX,
   index,
   onSelect,
+  hideHealth,
 }: {
   service: Service;
   isActive: boolean;
@@ -115,11 +266,11 @@ function DockItem({
   mouseX: number | null;
   index: number;
   onSelect: (id: string) => void;
+  hideHealth?: boolean;
 }) {
   const itemRef = useRef<HTMLButtonElement>(null);
   const [hovered, setHovered] = useState(false);
 
-  // Calculate scale based on mouse distance
   let scale = 1;
   if (mouseX !== null && itemRef.current) {
     const rect = itemRef.current.getBoundingClientRect();
@@ -135,7 +286,6 @@ function DockItem({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      {/* Tooltip */}
       {hovered && (
         <div style={{
           position: "absolute",
@@ -152,7 +302,6 @@ function DockItem({
           whiteSpace: "nowrap",
           pointerEvents: "none",
           boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-          animation: "fade-up 0.15s ease-out",
         }}>
           {service.name}
         </div>
@@ -190,13 +339,11 @@ function DockItem({
           transformOrigin: "bottom center",
         }}
       >
-        {/* Icon */}
         <span style={{ lineHeight: 1, filter: isActive || hovered ? "drop-shadow(0 0 6px rgba(74,243,255,0.6))" : "none", transition: "filter 0.2s" }}>
           {service.icon}
         </span>
 
-        {/* Active indicator + health dot */}
-        {service.id !== "settings" && (
+        {!hideHealth && service.healthUrl && (
           <div style={{
             position: "absolute",
             bottom: 3,
@@ -210,7 +357,6 @@ function DockItem({
         )}
       </button>
 
-      {/* Active dot */}
       <div style={{
         width: 4,
         height: 4,

@@ -645,6 +645,7 @@ services:
       AVATAR_GENERATOR_URL: http://${WINDOWS_PC_IP:-192.168.1.100}:${NVP_GPU_AVATAR_PORT:-5003}
       LLM_PROVIDER: ${NVP_LLM_PROVIDER:-local}
       LLM_MODEL: ${NVP_LLM_MODEL:-qwen2.5:7b}
+      CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
       GPU_SERVER_HOST: ${GPU_SERVER_HOST:-}
       GPU_SERVER_PORT: ${GPU_SERVER_PORT:-8189}
       COMFYUI_HOST: ${COMFYUI_HOST:-}
@@ -744,6 +745,7 @@ services:
       PORT: '3011'
       DATABASE_URL: postgresql://agent_bridge:${CORTEX_DB_PASSWORD}@postgres:5432/raiser
       CORTEX_API_KEY: ${CORTEX_API_KEY}
+      CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
     ports:
     - 0.0.0.0:3011:3011
     healthcheck:
@@ -784,6 +786,7 @@ services:
       MAX_VIDEOS_DEFAULT: '50'
       REFRESH_CRON: 0 3 * * 0
       PERSONA_API_KEY: ${PERSONA_API_KEY}
+      CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
     ports:
     - 0.0.0.0:8500:8500
     volumes:
@@ -899,6 +902,7 @@ services:
       CORTEX_API_KEY: ${CORTEX_API_KEY}
       CORTEX_TIMEOUT: '5000'
       YOUTUBEDL_URL: http://raiser-youtubedl:8000
+      CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
       YOUTUBEDL_API_KEY: ${YOUTUBEDL_API_KEY}
     ports:
     - 0.0.0.0:3015:3015
@@ -937,6 +941,7 @@ services:
       DB_NAME: seoh
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
     ports:
     - 127.0.0.1:3016:3016
     healthcheck:

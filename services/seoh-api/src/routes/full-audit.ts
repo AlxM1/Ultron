@@ -43,9 +43,12 @@ fullAuditRouter.post('/', async (req: Request, res: Response) => {
     // Step 1: Deep crawl via Crawlee
     let pages: CrawlPage[] = [];
     try {
-      const crawlRes = await fetch('http://raiser-crawlee:3000/api/crawl/deep', {
+      const crawlRes = await fetch('http://raiser-crawlee:3500/api/crawl/deep', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.CRAWLEE_API_KEY || '',
+        },
         body: JSON.stringify({ url: targetUrl, maxPages: 20 }),
         signal: AbortSignal.timeout(120000),
       });

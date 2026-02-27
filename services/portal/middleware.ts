@@ -13,3 +13,4 @@ export const config = {
     "/((?!login|api/|inotion|infrastructure|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.ico).*)",
   ],
 };
+

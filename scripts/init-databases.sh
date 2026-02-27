@@ -150,6 +150,11 @@ create_db_and_user \
     "dify" \
     "${DIFY_DB_PASSWORD:?DIFY_DB_PASSWORD is required}"
 
+create_db_and_user \
+    "firecrawl" \
+    "firecrawl" \
+    "${FIRECRAWL_DB_PASSWORD:?FIRECRAWL_DB_PASSWORD is required}"
+
 log "All databases initialised successfully."
 
 # ---------------------------------------------------------------------------

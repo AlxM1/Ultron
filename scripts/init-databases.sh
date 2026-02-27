@@ -108,6 +108,48 @@ create_db_and_user \
     "outline" \
     "${OUTLINE_DB_PASSWORD:?OUTLINE_DB_PASSWORD is required}"
 
+# --- SEOh Pipeline Services (Phase 1-3) ---
+
+create_db_and_user \
+    "twenty" \
+    "twenty" \
+    "${TWENTY_DB_PASSWORD:?TWENTY_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "umami" \
+    "umami" \
+    "${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "postiz" \
+    "postiz" \
+    "${POSTIZ_DB_PASSWORD:?POSTIZ_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "gitea" \
+    "gitea" \
+    "${GITEA_DB_PASSWORD:?GITEA_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "calcom" \
+    "calcom" \
+    "${CALCOM_DB_PASSWORD:?CALCOM_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "listmonk" \
+    "listmonk" \
+    "${LISTMONK_DB_PASSWORD:?LISTMONK_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "teable" \
+    "teable" \
+    "${TEABLE_DB_PASSWORD:?TEABLE_DB_PASSWORD is required}"
+
+create_db_and_user \
+    "dify" \
+    "dify" \
+    "${DIFY_DB_PASSWORD:?DIFY_DB_PASSWORD is required}"
+
 log "All databases initialised successfully."
 
 # ---------------------------------------------------------------------------

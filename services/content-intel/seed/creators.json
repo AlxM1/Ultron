@@ -20,6 +20,8 @@
     { "handle": "incomeSchoolMedia", "name": "Income School", "expertise": "content-marketing" },
     { "handle": "AuthorityHacker", "name": "Authority Hacker", "expertise": "seo-authority" },
     { "handle": "jessecunningham", "name": "Jesse Cunningham", "expertise": "youtube-seo" },
+    { "handle": "lexfridman", "name": "Lex Fridman", "expertise": "tech-interviews" },
+    { "handle": "joerogan", "name": "Joe Rogan", "expertise": "interviews-culture" },
     { "handle": "ThisWeekInStartups", "name": "This Week in Startups (TWIST)", "expertise": "startups-venture" },
     { "handle": "theallinpod", "name": "All-In Podcast", "expertise": "tech-venture-politics" },
     { "handle": "jasoncalacanis", "name": "Jason Calacanis", "expertise": "startups-venture-ai" },

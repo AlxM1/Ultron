@@ -1,0 +1,103 @@
+{
+    "success": true,
+    "data": [
+        {
+            "id": "wf_5ayDHGG5f236tqDS",
+            "name": "Content Ingestion Pipeline",
+            "description": "Ingest YouTube content: captions -> DB -> comments -> INotion",
+            "status": "active",
+            "tags": [
+                "content",
+                "youtube",
+                "ingestion",
+                "pipeline"
+            ],
+            "createdAt": "2026-02-27T16:24:26.455Z",
+            "updatedAt": "2026-02-27T16:24:57.283Z",
+            "nodeCount": 5
+        },
+        {
+            "id": "wf_LAJ1eIuAOVLqNbrF",
+            "name": "SEOh Full Audit Pipeline",
+            "description": "End-to-end SEO audit: deep crawl -> GEO scoring -> PDF report -> email -> INotion",
+            "status": "active",
+            "tags": [
+                "seoh",
+                "audit",
+                "pipeline"
+            ],
+            "createdAt": "2026-02-27T16:24:10.414Z",
+            "updatedAt": "2026-02-27T16:24:57.262Z",
+            "nodeCount": 7
+        },
+        {
+            "id": "wf_wxEuzcYPktFB4Xx1",
+            "name": "Daily Content Digest",
+            "description": "Daily 6AM digest: query new content, summarize, push to INotion",
+            "status": "active",
+            "tags": [
+                "content",
+                "digest",
+                "daily",
+                "cron"
+            ],
+            "createdAt": "2026-02-27T16:24:36.704Z",
+            "updatedAt": "2026-02-27T16:24:49.741Z",
+            "nodeCount": 4
+        },
+        {
+            "id": "wf_MbYjl9LQnjf8TOag",
+            "name": "Daily Cost Tracking & Aggregation",
+            "description": "Aggregates daily costs from all services and stores metrics",
+            "status": "active",
+            "tags": [
+                "cost-tracking",
+                "metrics",
+                "reporting",
+                "daily"
+            ],
+            "createdAt": "2026-02-27T14:52:31.035Z",
+            "updatedAt": "2026-02-27T14:52:52.474Z",
+            "nodeCount": 12
+        },
+        {
+            "id": "wf_TLhzLYSeSUGsMbFU",
+            "name": "Content Analysis Pipeline",
+            "description": "Triggers persona analysis when new transcript arrives from WhisperFlow or YouTubeDL",
+            "status": "active",
+            "tags": [
+                "content",
+                "pipeline",
+                "persona",
+                "analysis"
+            ],
+            "createdAt": "2026-02-27T14:52:22.720Z",
+            "updatedAt": "2026-02-27T14:52:52.450Z",
+            "nodeCount": 9
+        },
+        {
+            "id": "wf_LCFiU2k5Z7hmQZRh",
+            "name": "Service Health Monitoring",
+            "description": "Monitors all Ultron services every 5 minutes and alerts on failures",
+            "status": "active",
+            "tags": [
+                "monitoring",
+                "health",
+                "infrastructure"
+            ],
+            "createdAt": "2026-02-27T14:52:22.698Z",
+            "updatedAt": "2026-02-27T14:52:52.426Z",
+            "nodeCount": 12
+        }
+    ],
+    "meta": {
+        "pagination": {
+            "page": 1,
+            "perPage": 20,
+            "total": 6,
+            "totalPages": 1,
+            "hasNext": false,
+            "hasPrev": false
+        }
+    }
+}

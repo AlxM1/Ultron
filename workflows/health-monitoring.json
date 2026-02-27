@@ -5,108 +5,156 @@
     {
       "id": "trigger_1",
       "type": "ScheduleTrigger",
-      "position": { "x": 100, "y": 100 },
+      "position": {
+        "x": 100,
+        "y": 100
+      },
       "parameters": {
         "cronExpression": "*/5 * * * *",
         "timezone": "America/Vancouver"
-      }
+      },
+      "name": "trigger_1"
     },
     {
       "id": "check_agentsmith",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 100 },
+      "position": {
+        "x": 300,
+        "y": 100
+      },
       "parameters": {
         "url": "http://localhost:4000/health/live",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true
-      }
+      },
+      "name": "check_agentsmith"
     },
     {
       "id": "check_cortex",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 200 },
+      "position": {
+        "x": 300,
+        "y": 200
+      },
       "parameters": {
         "url": "http://localhost:3011/health",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true
-      }
+      },
+      "name": "check_cortex"
     },
     {
       "id": "check_postgres",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 300 },
+      "position": {
+        "x": 300,
+        "y": 300
+      },
       "parameters": {
         "url": "http://localhost:5432",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true,
-        "expectedStatus": [0, 200, 404, 502]
-      }
+        "expectedStatus": [
+          0,
+          200,
+          404,
+          502
+        ]
+      },
+      "name": "check_postgres"
     },
     {
       "id": "check_redis",
       "type": "Command",
-      "position": { "x": 300, "y": 400 },
+      "position": {
+        "x": 300,
+        "y": 400
+      },
       "parameters": {
         "command": "docker exec raiser-redis redis-cli -a \"$REDIS_PASSWORD\" ping",
         "continueOnFail": true
-      }
+      },
+      "name": "check_redis"
     },
     {
       "id": "check_youtubedl",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 500 },
+      "position": {
+        "x": 300,
+        "y": 500
+      },
       "parameters": {
         "url": "http://localhost:8200/docs",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true
-      }
+      },
+      "name": "check_youtubedl"
     },
     {
       "id": "check_persona",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 600 },
+      "position": {
+        "x": 300,
+        "y": 600
+      },
       "parameters": {
         "url": "http://localhost:8500/docs",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true
-      }
+      },
+      "name": "check_persona"
     },
     {
       "id": "check_whisperflow",
       "type": "HttpRequest",
-      "position": { "x": 300, "y": 700 },
+      "position": {
+        "x": 300,
+        "y": 700
+      },
       "parameters": {
         "url": "http://localhost:8766/api/health",
         "method": "GET",
         "timeout": 5000,
         "continueOnFail": true
-      }
+      },
+      "name": "check_whisperflow"
     },
     {
       "id": "aggregate_results",
       "type": "Function",
-      "position": { "x": 500, "y": 400 },
+      "position": {
+        "x": 500,
+        "y": 400
+      },
       "parameters": {
         "functionCode": "const services = [\n  { name: 'AgentSmith', result: $node['check_agentsmith'] },\n  { name: 'Cortex', result: $node['check_cortex'] },\n  { name: 'Postgres', result: $node['check_postgres'] },\n  { name: 'Redis', result: $node['check_redis'] },\n  { name: 'YouTubeDL', result: $node['check_youtubedl'] },\n  { name: 'Persona Pipeline', result: $node['check_persona'] },\n  { name: 'WhisperFlow', result: $node['check_whisperflow'] }\n];\n\nconst failures = services.filter(s => \n  !s.result || s.result.error || (s.result.statusCode && s.result.statusCode >= 500)\n);\n\nconst healthy = services.filter(s => \n  s.result && !s.result.error && (!s.result.statusCode || s.result.statusCode < 500)\n);\n\nreturn {\n  timestamp: new Date().toISOString(),\n  totalServices: services.length,\n  healthy: healthy.length,\n  failed: failures.length,\n  failures: failures.map(f => ({ \n    name: f.name, \n    error: f.result?.error || f.result?.statusCode \n  })),\n  status: failures.length > 0 ? 'degraded' : 'healthy'\n};"
-      }
+      },
+      "name": "aggregate_results"
     },
     {
       "id": "check_if_failures",
       "type": "If",
-      "position": { "x": 700, "y": 400 },
+      "position": {
+        "x": 700,
+        "y": 400
+      },
       "parameters": {
         "condition": "{{ $json.failed > 0 }}"
-      }
+      },
+      "name": "check_if_failures"
     },
     {
       "id": "send_alert",
       "type": "HttpRequest",
-      "position": { "x": 900, "y": 300 },
+      "position": {
+        "x": 900,
+        "y": 300
+      },
       "parameters": {
         "url": "http://localhost:3011/api/tasks",
         "method": "POST",
@@ -118,43 +166,104 @@
           "priority": "high",
           "data": "{{ $json }}"
         }
-      }
+      },
+      "name": "send_alert"
     },
     {
       "id": "log_healthy",
       "type": "Function",
-      "position": { "x": 900, "y": 500 },
+      "position": {
+        "x": 900,
+        "y": 500
+      },
       "parameters": {
         "functionCode": "console.log('[Health Check] All services healthy:', $json.timestamp);\nreturn $json;"
-      }
+      },
+      "name": "log_healthy"
     }
   ],
   "connections": [
-    { "source": "trigger_1", "target": "check_agentsmith" },
-    { "source": "trigger_1", "target": "check_cortex" },
-    { "source": "trigger_1", "target": "check_postgres" },
-    { "source": "trigger_1", "target": "check_redis" },
-    { "source": "trigger_1", "target": "check_youtubedl" },
-    { "source": "trigger_1", "target": "check_persona" },
-    { "source": "trigger_1", "target": "check_whisperflow" },
-    { "source": "check_agentsmith", "target": "aggregate_results" },
-    { "source": "check_cortex", "target": "aggregate_results" },
-    { "source": "check_postgres", "target": "aggregate_results" },
-    { "source": "check_redis", "target": "aggregate_results" },
-    { "source": "check_youtubedl", "target": "aggregate_results" },
-    { "source": "check_persona", "target": "aggregate_results" },
-    { "source": "check_whisperflow", "target": "aggregate_results" },
-    { "source": "aggregate_results", "target": "check_if_failures" },
-    { "source": "check_if_failures", "sourceOutput": "true", "target": "send_alert" },
-    { "source": "check_if_failures", "sourceOutput": "false", "target": "log_healthy" }
+    {
+      "source": "trigger_1",
+      "target": "check_agentsmith"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_cortex"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_postgres"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_redis"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_youtubedl"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_persona"
+    },
+    {
+      "source": "trigger_1",
+      "target": "check_whisperflow"
+    },
+    {
+      "source": "check_agentsmith",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_cortex",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_postgres",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_redis",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_youtubedl",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_persona",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "check_whisperflow",
+      "target": "aggregate_results"
+    },
+    {
+      "source": "aggregate_results",
+      "target": "check_if_failures"
+    },
+    {
+      "source": "check_if_failures",
+      "sourceOutput": "true",
+      "target": "send_alert"
+    },
+    {
+      "source": "check_if_failures",
+      "sourceOutput": "false",
+      "target": "log_healthy"
+    }
   ],
   "settings": {
-    "executionOrder": "parallel",
+    "executionOrder": "v2",
     "saveExecutionData": true,
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": null,
     "timezone": "America/Vancouver"
   },
-  "tags": ["monitoring", "health", "infrastructure"]
+  "tags": [
+    "monitoring",
+    "health",
+    "infrastructure"
+  ]
 }

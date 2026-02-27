@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const audit_1 = require("./routes/audit");
+const full_audit_1 = require("./routes/full-audit");
 const pool_1 = require("./db/pool");
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3015');
@@ -14,6 +15,7 @@ app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', service: 'seoh-api', timestamp: new Date().toISOString() });
 });
 app.use('/api/audit', audit_1.auditRouter);
+app.use('/api/audit/full', full_audit_1.fullAuditRouter);
 async function start() {
     try {
         await (0, pool_1.initDb)();

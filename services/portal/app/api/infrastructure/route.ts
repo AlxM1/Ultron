@@ -1,27 +1,62 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
 
 export const dynamic = "force-dynamic";
 
+const CORTEX_URL = process.env.CORTEX_INTERNAL_URL || "http://raiser-cortex:3011";
+const CORTEX_API_KEY = process.env.CORTEX_API_KEY || "";
+
+// Known services with their internal health endpoints
+const SERVICES = [
+  { name: "raiser-portal", image: "portal", port: "3020", healthUrl: "http://localhost:3020" },
+  { name: "raiser-cortex", image: "cortex", port: "3011", healthUrl: `${CORTEX_URL}/health` },
+  { name: "raiser-content-intel", image: "content-intel", port: "3015", healthUrl: "http://raiser-content-intel:3015/health" },
+  { name: "raiser-outline", image: "outline", port: "3000", healthUrl: "http://raiser-outline:3000/api/auth.info" },
+  { name: "raiser-agentsmith-frontend", image: "agentsmith-frontend", port: "3000", healthUrl: "http://raiser-agentsmith-frontend:3000" },
+  { name: "raiser-agentsmith-admin", image: "agentsmith-admin", port: "3001", healthUrl: "http://raiser-agentsmith-admin:3001" },
+  { name: "raiser-agentsmith-backend", image: "agentsmith-backend", port: "4000", healthUrl: "http://raiser-agentsmith-backend:4000/health" },
+  { name: "raiser-krya", image: "krya", port: "3000", healthUrl: "http://raiser-krya:3000" },
+  { name: "raiser-youtubedl", image: "youtubedl", port: "8000", healthUrl: "http://raiser-youtubedl:8000/health" },
+  { name: "raiser-newsletter-pipeline", image: "newsletter", port: "8000", healthUrl: "http://raiser-newsletter-pipeline:8000/health" },
+  { name: "raiser-apify", image: "apify", port: "8000", healthUrl: "http://raiser-apify:8000/health" },
+  { name: "raiser-persona-pipeline", image: "persona", port: "8500", healthUrl: "http://raiser-persona-pipeline:8500/health" },
+  { name: "raiser-whisperflow", image: "whisperflow", port: "8766", healthUrl: "http://raiser-whisperflow:8766/health" },
+  { name: "raiser-searxng", image: "searxng", port: "8080", healthUrl: "http://raiser-searxng:8080" },
+  { name: "raiser-authentik-server", image: "authentik", port: "9000", healthUrl: "http://raiser-authentik-server:9000/-/health/ready/" },
+  { name: "raiser-postgres", image: "postgres", port: "5432", healthUrl: null },
+  { name: "raiser-redis", image: "redis", port: "6379", healthUrl: null },
+];
+
+async function checkHealth(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { signal: controller.signal, headers: { "User-Agent": "00raiser-Portal" } });
+    clearTimeout(timeout);
+    return res.ok || res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET() {
   try {
-    const { stdout } = await execAsync(
-      'docker ps --format \'{"name":"{{.Names}}","status":"{{.Status}}","image":"{{.Image}}","ports":"{{.Ports}}"}\'',
-      { timeout: 5000 }
+    const containers = await Promise.all(
+      SERVICES.map(async (svc) => {
+        let status = "Up (assumed)";
+        if (svc.healthUrl) {
+          const healthy = await checkHealth(svc.healthUrl);
+          status = healthy ? "Up" : "Down";
+        }
+        return {
+          name: svc.name,
+          status,
+          image: svc.image,
+          ports: svc.port,
+        };
+      })
     );
-    const containers = stdout
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
     return NextResponse.json({ containers });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e.message, containers: [] },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e.message, containers: [] }, { status: 500 });
   }
 }

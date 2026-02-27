@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEOh Widget Test</title>
+  <style>
+    body { font-family: sans-serif; background: #0d1117; color: #fff; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; color: #8b949e; }
+    .section { width: 100%; max-width: 520px; }
+  </style>
+</head>
+<body>
+  <h1>SEOh Embeddable Widget — Test Page</h1>
+
+  <div class="section">
+    <h2>Dark Theme (default)</h2>
+    <div id="seoh-widget" data-api="http://localhost:3015" data-theme="dark"></div>
+    <script src="embed.js"></script>
+  </div>
+
+  <div class="section">
+    <h2>Light Theme</h2>
+    <script src="embed.js" data-api="http://localhost:3015" data-theme="light"></script>
+  </div>
+</body>
+</html>

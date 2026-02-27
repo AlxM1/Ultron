@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { auditRouter } from './routes/audit';
 import { fullAuditRouter } from './routes/full-audit';
 import { fixesRouter } from './routes/fixes';
@@ -11,6 +12,9 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3015');
 
 app.use(express.json());
+
+// Static: widget assets
+app.use('/widget', express.static(path.join(__dirname, '..', 'public', 'widget')));
 
 // Routes
 app.get('/api/health', (_req, res) => {

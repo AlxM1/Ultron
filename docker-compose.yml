@@ -927,6 +927,43 @@ services:
       resources:
         limits:
           memory: 1g
+  persona-engine:
+    build:
+      context: ./services/persona-engine
+      dockerfile: Dockerfile
+    container_name: raiser-persona-engine
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3017'
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: content_intel
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+    - 0.0.0.0:3017:3017
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3017/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 512m
   seoh-api:
     build:
       context: ./services/seoh-api

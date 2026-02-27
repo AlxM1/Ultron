@@ -2,6 +2,7 @@ import express from 'express';
 import pool from './db.js';
 import { buildProfile, saveProfile, getProfile, getAllCreators } from './analyzer.js';
 import { queryPersona, queryBoard } from './llm.js';
+import { generateVoice, hasVoiceProfile } from './voice.js';
 
 const app = express();
 app.use(express.json());
@@ -137,6 +138,103 @@ app.post('/api/persona/board', async (req, res) => {
       question,
       board_perspectives: result.perspectives,
       consensus: result.consensus,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Speak — query persona and return audio
+app.post('/api/persona/:creator_name/speak', async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.creator_name);
+    const { question } = req.body;
+    if (!question) {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    if (!hasVoiceProfile(name)) {
+      return res.status(404).json({ error: `No voice profile for "${name}"` });
+    }
+
+    let profile = await getProfile(name);
+    if (!profile) {
+      profile = await buildProfile(name);
+      if (!profile) {
+        return res.status(404).json({ error: `Creator "${name}" not found` });
+      }
+      await saveProfile(profile);
+    }
+
+    const result = await queryPersona(profile, question);
+    const audio = await generateVoice(result.text, name);
+
+    if (!audio) {
+      return res.status(502).json({
+        error: 'TTS generation failed',
+        text_response: result.text,
+        source: result.source,
+      });
+    }
+
+    res.set({
+      'Content-Type': 'audio/wav',
+      'Content-Disposition': `inline; filename="${name.toLowerCase().replace(/\s+/g, '-')}-response.wav"`,
+      'X-Persona-Text': Buffer.from(result.text).toString('base64'),
+      'X-Persona-Source': result.source,
+    });
+    res.send(audio);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Board speak — each member responds with audio
+app.post('/api/persona/board/speak', async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question) {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    const profileEntries = await Promise.all(
+      BOARD_MEMBERS.map(async (member) => {
+        let profile = await getProfile(member);
+        if (!profile) {
+          profile = await buildProfile(member);
+          if (profile) await saveProfile(profile);
+        }
+        return { member, profile: profile! };
+      })
+    );
+
+    // Generate text responses
+    const boardResult = await queryBoard(profileEntries, question);
+
+    // Generate audio for each member in parallel
+    const perspectives = await Promise.all(
+      boardResult.perspectives.map(async (p) => {
+        let audioBase64: string | null = null;
+        if (hasVoiceProfile(p.member)) {
+          const audio = await generateVoice(p.response, p.member);
+          if (audio) {
+            audioBase64 = audio.toString('base64');
+          }
+        }
+        return {
+          member: p.member,
+          response: p.response,
+          source: p.source,
+          has_audio: !!audioBase64,
+          audio_base64: audioBase64,
+        };
+      })
+    );
+
+    res.json({
+      question,
+      board_perspectives: perspectives,
+      consensus: boardResult.consensus,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

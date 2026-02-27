@@ -53,7 +53,7 @@ function findRelevantQuotes(profile: PersonaProfile, question: string): string[]
 async function tryOllama(prompt: string, systemPrompt: string): Promise<string | null> {
   try {
     // Check if Ollama is available
-    const tagRes = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    const tagRes = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(10000) });
     if (!tagRes.ok) return null;
 
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
@@ -66,7 +66,7 @@ async function tryOllama(prompt: string, systemPrompt: string): Promise<string |
         stream: false,
         options: { temperature: 0.7, num_predict: 512 },
       }),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(300000),
     });
     if (!res.ok) return null;
     const data = await res.json() as any;
@@ -132,16 +132,16 @@ export async function queryBoard(
   perspectives: Array<{ member: string; response: string; source: string }>;
   consensus: string;
 }> {
-  // Query all members in parallel
-  const results = await Promise.all(
-    profiles.map(async ({ profile, member }) => {
-      if (!profile) {
-        return { member, response: `No transcript data available for ${member}.`, source: 'none' as const };
-      }
-      const result = await queryPersona(profile, question);
-      return { member, response: result.text, source: result.source };
-    })
-  );
+  // Query members sequentially (Ollama handles one request at a time on CPU)
+  const results = [];
+  for (const { profile, member } of profiles) {
+    if (!profile) {
+      results.push({ member, response: `No transcript data available for ${member}.`, source: 'none' as const });
+      continue;
+    }
+    const result = await queryPersona(profile, question);
+    results.push({ member, response: result.text, source: result.source });
+  }
 
   // Build consensus
   const consensus = buildConsensus(profiles.map(p => p.profile).filter(Boolean), question);

@@ -945,8 +945,8 @@ services:
       DB_NAME: content_intel
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      OLLAMA_URL: http://localhost:11434
-      OLLAMA_MODEL: llama3
+      OLLAMA_URL: http://10.25.10.60:11434
+      OLLAMA_MODEL: llama3.2:latest
     network_mode: host
     healthcheck:
       test:

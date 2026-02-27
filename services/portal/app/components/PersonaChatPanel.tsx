@@ -7,6 +7,9 @@ interface PersonaMessage {
   role: "user" | "persona";
   text: string;
   timestamp: number;
+  audioUrl?: string;
+  audioLoading?: boolean;
+  question?: string; // original question for speak requests
 }
 
 export default function PersonaChatPanel({
@@ -66,6 +69,7 @@ export default function PersonaChatPanel({
           role: "persona",
           text: data.response || data.error || "No response.",
           timestamp: Date.now(),
+          question: text,
         };
         setMessages((prev) => [...prev, reply]);
       } catch {
@@ -92,6 +96,46 @@ export default function PersonaChatPanel({
     sendMessage(val);
     if (inputRef.current) inputRef.current.value = "";
   }
+
+  const handleListen = useCallback(
+    async (msgId: string, question: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, audioLoading: true } : m
+        )
+      );
+      try {
+        const res = await fetch(
+          `/api/persona/speak?name=${encodeURIComponent(personaName)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question }),
+          }
+        );
+        if (!res.ok) throw new Error("TTS failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, audioUrl: url, audioLoading: false }
+              : m
+          )
+        );
+        // Auto-play
+        const audio = new Audio(url);
+        audio.play().catch(() => {});
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId ? { ...m, audioLoading: false } : m
+          )
+        );
+      }
+    },
+    [personaName]
+  );
 
   const AMBER = "#f59e0b";
 
@@ -206,6 +250,48 @@ export default function PersonaChatPanel({
               }}
             >
               {msg.text}
+              {msg.role === "persona" && msg.question && (
+                <div style={{ marginTop: 6 }}>
+                  {msg.audioUrl ? (
+                    <audio
+                      controls
+                      src={msg.audioUrl}
+                      style={{ height: 28, width: "100%" }}
+                    />
+                  ) : (
+                    <button
+                      onClick={() =>
+                        handleListen(msg.id, msg.question!)
+                      }
+                      disabled={msg.audioLoading}
+                      style={{
+                        all: "unset",
+                        cursor: msg.audioLoading
+                          ? "wait"
+                          : "pointer",
+                        fontSize: 11,
+                        color: AMBER,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        opacity: msg.audioLoading ? 0.5 : 1,
+                      }}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill={AMBER}
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      {msg.audioLoading
+                        ? "Generating..."
+                        : "Listen"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -6,12 +6,12 @@ API_KEY = "AIzaSyBBAV0OoAHGpz1ti8_4NCNZTYzxT9en4rI"
 LOG = "/home/eternity/.openclaw/workspace/Ultron/scripts/comments-api.log"
 
 def sql_rows(q, user="content_intel"):
-    r = subprocess.run(["docker","exec","raiser-postgres","psql","-U",user,"-d","raiser",
+    r = subprocess.run(["docker","exec","raiser-postgres","psql","-U",user,"-d","content_intel",
                         "-t","-A","-F","\t","-c",q], capture_output=True, text=True, timeout=30)
     return [l.strip() for l in r.stdout.strip().split('\n') if l.strip()]
 
-def sql_exec(q, user="postgres"):
-    subprocess.run(["docker","exec","raiser-postgres","psql","-U",user,"-d","raiser","-c",q],
+def sql_exec(q, user="content_intel"):
+    subprocess.run(["docker","exec","raiser-postgres","psql","-U",user,"-d","content_intel","-c",q],
                    capture_output=True, text=True, timeout=30)
 
 def log(msg):
@@ -73,7 +73,7 @@ def save_comments(content_id, comments):
         text = c['text'].replace("$$", "$ $")[:10000]
         author = c['author'].replace("'", "''")[:255]
         if not text.strip(): continue
-        sql_exec(f"""INSERT INTO content.comments (content_id, text, author, likes, reply_count)
+        sql_exec(f"""INSERT INTO comments (content_id, text, author, likes, reply_count)
                 VALUES ({content_id}, $${text}$$, '{author}', {c['likes']}, {c['reply_count']})
                 ON CONFLICT DO NOTHING""")
         saved += 1
@@ -81,11 +81,11 @@ def save_comments(content_id, comments):
 
 def main():
     rows = sql_rows("""SELECT c.id, c.external_id, c.title 
-        FROM content.content c 
-        LEFT JOIN content.comments cm ON cm.content_id = c.id
+        FROM content c 
+        LEFT JOIN comments cm ON cm.content_id = c.id
         WHERE c.platform = 'youtube' AND cm.id IS NULL
         ORDER BY COALESCE((c.metrics->>'viewCount')::bigint, 0) DESC
-        LIMIT 2000""")
+        LIMIT 100""")
     
     total = len(rows)
     log(f"Comment scraping via API (through container): {total} videos")

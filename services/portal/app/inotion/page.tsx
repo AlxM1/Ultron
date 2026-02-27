@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map, Radar } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map, Radar, BarChart3 } from "lucide-react";
 import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
 import GlobalSearch from "../components/inotion/GlobalSearch";
@@ -18,6 +18,7 @@ import type { AgentJob } from "../components/inotion/PortalCalendar";
 const NAV_ITEMS = [
   { href: "/inotion", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inotion/creators", label: "Creators", icon: Users },
+  { href: "/inotion/creators/analytics", label: "Creator Analytics", icon: BarChart3 },
   { href: "/inotion/agents", label: "Agents", icon: Calendar },
   { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/inotion/costs", label: "Costs", icon: DollarSign },

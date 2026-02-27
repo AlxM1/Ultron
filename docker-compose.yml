@@ -840,6 +840,9 @@ services:
       CONTENT_INTEL_INTERNAL_URL: http://raiser-content-intel:3015
       CORTEX_API_KEY: ${CORTEX_API_KEY}
       CONTENT_INTEL_API_KEY: ${CONTENT_INTEL_API_KEY}
+      CONTENT_INTEL_DB_HOST: raiser-postgres
+      CONTENT_INTEL_DB_USER: postgres
+      CONTENT_INTEL_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       OUTLINE_API_KEY: ${OUTLINE_API_KEY}
       OUTLINE_INTERNAL_URL: http://raiser-outline:3000
       NEXT_PUBLIC_OUTLINE_URL: https://inotion.00raiser.space
@@ -1398,6 +1401,91 @@ services:
       resources:
         limits:
           memory: 2g
+
+  # =========================================================================
+  # FIRECRAWL — Web Data API for AI (self-hosted)
+  # =========================================================================
+
+  firecrawl-playwright:
+    build: ./services/firecrawl/apps/playwright-service-ts
+    container_name: raiser-firecrawl-playwright
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      MAX_CONCURRENT_PAGES: "5"
+    networks:
+    - raiser-net
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+  firecrawl-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: raiser-firecrawl-rabbitmq
+    restart: unless-stopped
+    networks:
+    - raiser-net
+    healthcheck:
+      test:
+      - CMD
+      - rabbitmq-diagnostics
+      - -q
+      - check_running
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  firecrawl:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: raiser-firecrawl
+    restart: unless-stopped
+    command: node dist/src/harness.js --start-docker
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3002"
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/6
+      REDIS_RATE_LIMIT_URL: redis://:${REDIS_PASSWORD}@redis:6379/6
+      PLAYWRIGHT_MICROSERVICE_URL: http://raiser-firecrawl-playwright:3000/scrape
+      USE_DB_AUTHENTICATION: "false"
+      BULL_AUTH_KEY: ${FIRECRAWL_BULL_AUTH_KEY:-changeme}
+      NUM_WORKERS_PER_QUEUE: "4"
+      CRAWL_CONCURRENT_REQUESTS: "5"
+      MAX_CONCURRENT_JOBS: "3"
+      NUQ_RABBITMQ_URL: amqp://raiser-firecrawl-rabbitmq:5672
+      SEARXNG_ENDPOINT: http://raiser-searxng:8080
+      OLLAMA_BASE_URL: http://10.25.10.60:11434/api
+      MODEL_NAME: llama3.2
+      NUQ_DATABASE_URL: postgresql://firecrawl:${FIRECRAWL_DB_PASSWORD}@postgres:5432/firecrawl
+      POSTGRES_USER: firecrawl
+      POSTGRES_PASSWORD: ${FIRECRAWL_DB_PASSWORD}
+      POSTGRES_DB: firecrawl
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    ports:
+    - 0.0.0.0:3018:3002
+    depends_on:
+      redis:
+        condition: service_healthy
+      firecrawl-playwright:
+        condition: service_started
+      firecrawl-rabbitmq:
+        condition: service_healthy
+    networks:
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 4g
 
 volumes:
   postgres_data: null

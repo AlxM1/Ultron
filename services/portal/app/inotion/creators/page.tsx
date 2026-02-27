@@ -233,6 +233,10 @@ export default function CreatorsPage() {
             </Link>
             <span className="text-zinc-200 dark:text-zinc-700">/</span>
             <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Creator Intelligence</h1>
+            <span className="text-zinc-200 dark:text-zinc-700">/</span>
+            <Link href="/inotion/creators/analytics" className="text-xs text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 font-medium transition-colors">
+              Analytics
+            </Link>
           </div>
           <div className="flex items-center gap-3">
             <GlobalSearch />

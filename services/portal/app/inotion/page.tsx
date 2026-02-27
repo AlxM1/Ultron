@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map, Radar } from "lucide-react";
 import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
 import GlobalSearch from "../components/inotion/GlobalSearch";
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/inotion/costs", label: "Costs", icon: DollarSign },
   { href: "/inotion/roadmap", label: "Roadmap", icon: Map },
+  { href: "/inotion/audit", label: "SEO Audit", icon: Radar },
 ];
 
 // ─── Live Activity Feed ───────────────────────────────────────────────────────

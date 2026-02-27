@@ -12,6 +12,7 @@ const nextConfig = {
       { source: "/api/content-intel/:path*", destination: "http://raiser-content-intel:3015/api/:path*" },
       { source: "/api/innotion/:path*", destination: "http://raiser-outline:3000/api/:path*" },
       { source: "/api/apify/:path*", destination: "http://raiser-apify:8000/:path*" },
+      { source: "/api/seoh/:path*", destination: "http://raiser-seoh-api:3016/api/:path*" },
     ];
   },
 };

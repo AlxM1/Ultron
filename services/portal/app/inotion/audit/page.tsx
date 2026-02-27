@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Search, Loader2, Download, Wrench, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
 
 interface DimensionData {
   score: number;
@@ -17,6 +17,224 @@ interface AuditReport {
   page_scores: Array<{ url: string; score: number }>;
   recommendations: string[];
   audited_at: string;
+}
+
+interface Fix {
+  category: string;
+  priority: "critical" | "high" | "medium" | "low";
+  explanation: string;
+  currentValue: string;
+  fixedCode: string;
+}
+
+interface FixesResponse {
+  fixes: Fix[];
+  summary: { critical: number; high: number; medium: number; low: number };
+}
+
+const PRIORITY_ORDER = ["critical", "high", "medium", "low"] as const;
+const PRIORITY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  critical: { bg: "rgba(239,68,68,0.15)", border: "rgba(239,68,68,0.4)", text: "#ef4444" },
+  high: { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.4)", text: "#eab308" },
+  medium: { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.4)", text: "#3b82f6" },
+  low: { bg: "rgba(34,197,94,0.15)", border: "rgba(34,197,94,0.4)", text: "#22c55e" },
+};
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      style={{
+        display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6,
+        border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)",
+        color: copied ? "#22c55e" : "rgba(255,255,255,0.5)", fontSize: 11, cursor: "pointer",
+        fontWeight: 500, transition: "all 0.2s",
+      }}
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.low;
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
+      padding: "3px 8px", borderRadius: 4, background: c.bg, border: `1px solid ${c.border}`, color: c.text,
+    }}>
+      {priority}
+    </span>
+  );
+}
+
+function CategoryBadge({ category }: { category: string }) {
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
+      padding: "3px 8px", borderRadius: 4,
+      background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b",
+    }}>
+      {category}
+    </span>
+  );
+}
+
+function FixesPanel({ report }: { report: AuditReport }) {
+  const [fixes, setFixes] = useState<FixesResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+
+  const loadFixes = async () => {
+    if (fixes) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/seoh/audit/fixes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(report),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setFixes(await res.json());
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const grouped = fixes ? PRIORITY_ORDER.reduce((acc, p) => {
+    const items = fixes.fixes.filter(f => f.priority === p);
+    if (items.length) acc.push({ priority: p, items });
+    return acc;
+  }, [] as { priority: string; items: Fix[] }[]) : [];
+
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.02)", border: "1px solid rgba(245,158,11,0.1)",
+      borderRadius: 16, padding: 24, marginBottom: 24,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: fixes ? 20 : 0 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "rgba(245,158,11,0.9)", display: "flex", alignItems: "center", gap: 8 }}>
+          <Wrench size={16} />
+          Auto-Fix Suggestions
+        </h3>
+        {!fixes && (
+          <button
+            onClick={loadFixes}
+            disabled={loading}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", borderRadius: 8,
+              border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.1)",
+              color: "#f59e0b", fontWeight: 600, fontSize: 13, cursor: loading ? "wait" : "pointer",
+            }}
+          >
+            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Wrench size={14} />}
+            {loading ? "Generating fixes..." : "View Fixes"}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div style={{ padding: 12, borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 13, marginTop: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {fixes && (
+        <>
+          {/* Summary badges */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            {PRIORITY_ORDER.map(p => {
+              const count = fixes.summary[p];
+              if (!count) return null;
+              const c = PRIORITY_COLORS[p];
+              return (
+                <span key={p} style={{
+                  fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 6,
+                  background: c.bg, border: `1px solid ${c.border}`, color: c.text,
+                }}>
+                  {count} {p.charAt(0).toUpperCase() + p.slice(1)}
+                </span>
+              );
+            })}
+          </div>
+
+          {/* Grouped fixes */}
+          {grouped.map(group => (
+            <div key={group.priority} style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
+                color: PRIORITY_COLORS[group.priority].text, marginBottom: 10,
+              }}>
+                {group.priority} ({group.items.length})
+              </div>
+              {group.items.map((fix, i) => {
+                const idx = fixes.fixes.indexOf(fix);
+                const isExpanded = expanded[idx] !== false; // default expanded
+                return (
+                  <div key={i} style={{
+                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 10, marginBottom: 8, overflow: "hidden",
+                  }}>
+                    <div
+                      onClick={() => setExpanded(prev => ({ ...prev, [idx]: !isExpanded }))}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", cursor: "pointer",
+                        borderBottom: isExpanded ? "1px solid rgba(255,255,255,0.04)" : "none",
+                      }}
+                    >
+                      {isExpanded ? <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.3)" }} /> : <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.3)" }} />}
+                      <CategoryBadge category={fix.category} />
+                      <PriorityBadge priority={fix.priority} />
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", flex: 1 }}>{fix.explanation}</span>
+                    </div>
+                    {isExpanded && (
+                      <div style={{ padding: "12px 16px" }}>
+                        {fix.currentValue && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                              Current
+                            </div>
+                            <pre style={{
+                              margin: 0, padding: 12, borderRadius: 8, background: "rgba(0,0,0,0.4)",
+                              border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)",
+                              fontSize: 12, fontFamily: "'SF Mono', Consolas, monospace", overflowX: "auto", whiteSpace: "pre-wrap",
+                            }}>
+                              {fix.currentValue}
+                            </pre>
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                              Fixed Code
+                            </span>
+                            <CopyButton text={fix.fixedCode} />
+                          </div>
+                          <pre style={{
+                            margin: 0, padding: 12, borderRadius: 8, background: "rgba(0,0,0,0.4)",
+                            border: "1px solid rgba(34,197,94,0.15)", color: "rgba(255,255,255,0.8)",
+                            fontSize: 12, fontFamily: "'SF Mono', Consolas, monospace", overflowX: "auto", whiteSpace: "pre-wrap",
+                          }}>
+                            {fix.fixedCode}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -237,6 +455,9 @@ export default function AuditPage() {
                 Download PDF Report
               </button>
             </div>
+            {/* Fixes */}
+            <FixesPanel report={report} />
+
             {/* Score + Dimensions */}
             <div style={{
               display: "grid", gridTemplateColumns: "auto 1fr", gap: 48,

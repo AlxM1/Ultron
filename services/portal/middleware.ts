@@ -10,6 +10,6 @@ export const config = {
      * - /favicon.ico, /public files
      * - /inotion/* (dashboard pages — public showcase)
      */
-    "/((?!login|api/|inotion|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.ico).*)",
+    "/((?!login|api/|inotion|infrastructure|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.ico).*)",
   ],
 };

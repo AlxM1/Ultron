@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, Video, FileText, ExternalLink, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Users, Video, FileText } from "lucide-react";
 import ThemeToggle from "../../../components/inotion/ThemeToggle";
 
 interface Creator {
@@ -19,18 +19,17 @@ interface Creator {
   url?: string;
   niche?: string;
   strategic_value?: string;
-  bio?: string;
-  recent_content?: { id: string; title: string; date?: string; url?: string }[];
+  description?: string;
 }
 
 function fmtNum(n?: number): string {
-  if (!n) return "—";
+  if (!n) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return n.toString();
 }
 
-function fmtDate(iso?: string | null): string {
+function fmtDate(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   const ms = Date.now() - d.getTime();
@@ -44,27 +43,24 @@ function fmtDate(iso?: string | null): string {
 
 export default function CreatorDetailPage() {
   const params = useParams();
-  const creatorId = params.id as string;
+  const id = params.id as string;
   const [creator, setCreator] = useState<Creator | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        // Try to get from content-intel via our API
-        const res = await fetch(`/api/creators?search=&limit=500`);
+        const res = await fetch("/api/creators");
         if (res.ok) {
           const data = await res.json();
-          const found = (data.creators ?? []).find(
-            (c: Creator) => c.id === creatorId || c.id === parseInt(creatorId) as any
-          );
+          const found = (data.creators ?? []).find((c: Creator) => c.id === id);
           setCreator(found ?? null);
         }
       } catch {}
       setLoading(false);
     }
     load();
-  }, [creatorId]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -77,8 +73,7 @@ export default function CreatorDetailPage() {
   if (!creator) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <AlertTriangle size={24} className="text-zinc-400" />
-        <p className="text-sm text-zinc-500">Creator not found</p>
+        <p className="text-sm text-zinc-500">Creator not found: {id}</p>
         <Link href="/inotion/creators" className="text-xs text-blue-500 hover:underline">Back to creators</Link>
       </div>
     );
@@ -95,10 +90,10 @@ export default function CreatorDetailPage() {
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/inotion/creators" className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+            <Link href="/inotion/creators" className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300">
               <ArrowLeft size={12} /> Creators
             </Link>
-            <span className="text-zinc-200 dark:text-zinc-700">/</span>
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
             <span className="text-sm font-semibold">{creator.name}</span>
           </div>
           <ThemeToggle />
@@ -106,105 +101,78 @@ export default function CreatorDetailPage() {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-6 py-8 space-y-8">
-        {/* Profile card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-          <div className="flex items-start justify-between mb-4">
+        {/* Profile header */}
+        <div>
+          <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold mb-1">{creator.name}</h1>
-              <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-                {creator.handle && <span>@{creator.handle}</span>}
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 capitalize">
+              <h1 className="text-2xl font-bold tracking-tight">{creator.name}</h1>
+              <div className="mt-1 flex items-center gap-3">
+                {creator.handle && <span className="text-sm text-zinc-400">@{creator.handle}</span>}
+                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium capitalize bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                   {creator.platform}
                 </span>
-                {creator.strategic_value && (
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    creator.strategic_value === "high" ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" :
-                    "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
-                  }`}>
-                    {creator.strategic_value} value
+                {creator.strategic_value === "high" && (
+                  <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                    Priority
                   </span>
                 )}
               </div>
             </div>
             {creator.url && (
               <a href={creator.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                <ExternalLink size={12} /> Profile
+                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                <ExternalLink size={12} /> View channel
               </a>
             )}
           </div>
-          {creator.bio && (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-4">
-              {creator.bio}
-            </p>
-          )}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <StatCard icon={<Users size={14} />} label="Subscribers" value={fmtNum(creator.subscriber_count)} />
-          <StatCard icon={<Video size={14} />} label="Content Items" value={fmtNum(creator.content_count)} />
-          <StatCard icon={<FileText size={14} />} label="Transcripts" value={fmtNum(creator.transcript_count)} />
-          <StatCard label="Coverage" value={`${coverage}%`} bar={coverage} />
-          <StatCard label="Last Scraped" value={fmtDate(creator.last_scraped_at)} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatBox icon={Users} label="Subscribers" value={fmtNum(creator.subscriber_count)} />
+          <StatBox icon={Video} label="Content Items" value={fmtNum(creator.content_count)} />
+          <StatBox icon={FileText} label="Transcripts" value={fmtNum(creator.transcript_count)} />
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Coverage</span>
+            </div>
+            <div className={`text-2xl font-bold tracking-tight ${
+              coverage >= 80 ? "text-emerald-600 dark:text-emerald-400" :
+              coverage >= 50 ? "text-amber-600 dark:text-amber-400" :
+              "text-rose-600 dark:text-rose-400"
+            }`}>{coverage}%</div>
+            <div className="mt-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+              <div className={`h-full rounded-full ${
+                coverage >= 80 ? "bg-emerald-500" : coverage >= 50 ? "bg-amber-500" : "bg-rose-500"
+              }`} style={{ width: `${Math.min(100, coverage)}%` }} />
+            </div>
+          </div>
         </div>
 
-        {/* Recent content */}
-        {creator.recent_content && creator.recent_content.length > 0 && (
-          <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">
-              Latest Content
-            </h2>
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    <th className="text-left px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400">Title</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
-                  {creator.recent_content.map((item) => (
-                    <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                      <td className="px-5 py-3">
-                        {item.url ? (
-                          <a href={item.url} target="_blank" rel="noopener noreferrer"
-                            className="text-zinc-800 dark:text-zinc-200 hover:text-blue-500 transition-colors">
-                            {item.title}
-                          </a>
-                        ) : (
-                          <span className="text-zinc-800 dark:text-zinc-200">{item.title}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-zinc-400 text-right font-mono">{fmtDate(item.date)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        {/* Metadata */}
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">Details</h2>
+          <dl className="grid grid-cols-2 gap-4 text-sm">
+            {creator.niche && <><dt className="text-zinc-400">Niche</dt><dd className="text-zinc-800 dark:text-zinc-200">{creator.niche}</dd></>}
+            <dt className="text-zinc-400">Last Scraped</dt>
+            <dd className="text-zinc-800 dark:text-zinc-200">{fmtDate(creator.last_scraped_at)}</dd>
+            <dt className="text-zinc-400">Platform</dt>
+            <dd className="text-zinc-800 dark:text-zinc-200 capitalize">{creator.platform}</dd>
+          </dl>
+        </div>
       </main>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, bar }: { icon?: React.ReactNode; label: string; value: string; bar?: number }) {
+function StatBox({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-      <div className="flex items-center gap-1.5 mb-2">
-        {icon && <span className="text-zinc-400">{icon}</span>}
-        <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{label}</p>
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{label}</span>
+        <Icon size={12} className="text-zinc-400" />
       </div>
-      <p className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{value}</p>
-      {bar !== undefined && (
-        <div className="mt-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1 overflow-hidden">
-          <div
-            className={`h-full rounded-full ${bar >= 80 ? "bg-emerald-500" : bar >= 50 ? "bg-amber-500" : "bg-rose-500"}`}
-            style={{ width: `${Math.min(100, bar)}%` }}
-          />
-        </div>
-      )}
+      <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{value}</div>
     </div>
   );
 }

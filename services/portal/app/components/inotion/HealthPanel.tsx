@@ -38,6 +38,9 @@ const ALL_SERVICES: ServiceHealth[] = [
   { id: "authentik",           name: "Authentik (SSO)",      url: "http://localhost:9000/-/health/ready/",  port: "9000", category: "security", description: "Single sign-on and identity provider for all services",                    wikiSlug: "Authentik" },
   { id: "postgres",            name: "PostgreSQL",           url: "http://localhost:5432",                   port: "5432", category: "data",     description: "Primary database — creators, transcripts, content, and agent state",       wikiSlug: "PostgreSQL" },
   { id: "redis",               name: "Redis",                url: "http://localhost:6379",                   port: "6379", category: "data",     description: "In-memory cache and message broker for real-time operations",              wikiSlug: "Redis" },
+  { id: "gitea",               name: "Gitea",                url: "http://localhost:3003",                   port: "3003", category: "tools",    description: "Self-hosted Git hosting and code collaboration platform",                   wikiSlug: "Gitea",                  serviceUrl: "https://git.00raiser.space" },
+  { id: "uptime-kuma",         name: "Uptime Kuma",          url: "http://localhost:3002",                   port: "3002", category: "tools",    description: "Uptime monitoring and status pages for all services",                       wikiSlug: "Uptime Kuma",            serviceUrl: "https://kuma.00raiser.space" },
+  { id: "stirling-pdf",        name: "Stirling PDF",         url: "http://localhost:8081",                   port: "8081", category: "tools",    description: "PDF tools — merge, split, convert, OCR, and more",                         wikiSlug: "Stirling PDF",           serviceUrl: "https://pdf.00raiser.space" },
 ];
 
 // Application services (always visible, large cards)

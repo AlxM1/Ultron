@@ -16,8 +16,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build Next.js app
-ENV NODE_OPTIONS="--max-old-space-size=8192"
-RUN npm run build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN node node_modules/.bin/next build
 
 # Production image, copy all the files and run next
 FROM base AS runner

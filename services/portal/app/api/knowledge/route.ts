@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const OUTLINE_BASE = process.env.OUTLINE_INTERNAL_URL || "http://raiser-outline:3000";
 const OUTLINE_API_KEY = process.env.OUTLINE_API_KEY || "";
+
+export const dynamic = "force-dynamic";
 
 async function outlinePost(path: string, body: Record<string, unknown> = {}) {
   const res = await fetch(`${OUTLINE_BASE}/api/${path}`, {
@@ -19,34 +19,34 @@ async function outlinePost(path: string, body: Record<string, unknown> = {}) {
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const query = searchParams.get("q") || searchParams.get("search") || "";
-  const limit = parseInt(searchParams.get("limit") || "20", 10);
+  const query = request.nextUrl.searchParams.get("q") || request.nextUrl.searchParams.get("search") || "";
+  const limit = parseInt(request.nextUrl.searchParams.get("limit") || "25", 10);
 
   try {
     if (query) {
-      const data = await outlinePost("documents.search", { query, limit });
-      const results = (data?.data ?? []).map((item: any) => ({
+      const searchRes = await outlinePost("documents.search", { query, limit });
+      const results = (searchRes?.data ?? []).map((item: any) => ({
         id: item.document?.id,
         title: item.document?.title,
-        context: item.context,
-        collectionId: item.document?.collectionId,
+        collection: item.document?.collection?.name,
         updatedAt: item.document?.updatedAt,
         url: item.document?.url,
+        context: item.context,
+        ranking: item.ranking,
       }));
-      return NextResponse.json({ results, total: results.length });
+      return NextResponse.json({ results, total: searchRes?.pagination?.total ?? results.length });
     }
 
-    // No query — return recent docs
-    const data = await outlinePost("documents.list", { limit, sort: "updatedAt", direction: "DESC" });
-    const documents = (data?.data ?? []).map((doc: any) => ({
+    // No query — return recent documents
+    const docsRes = await outlinePost("documents.list", { limit, sort: "updatedAt", direction: "DESC" });
+    const documents = (docsRes?.data ?? []).map((doc: any) => ({
       id: doc.id,
       title: doc.title,
-      collectionId: doc.collectionId,
+      collection: doc.collection?.name,
       updatedAt: doc.updatedAt,
       url: doc.url,
     }));
-    return NextResponse.json({ results: documents, total: documents.length });
+    return NextResponse.json({ results: documents, total: docsRes?.pagination?.total ?? documents.length });
   } catch (err) {
     return NextResponse.json(
       { results: [], total: 0, error: err instanceof Error ? err.message : "Unknown error" },

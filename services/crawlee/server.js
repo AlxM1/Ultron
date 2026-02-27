@@ -2,6 +2,7 @@
 import { PlaywrightCrawler } from 'crawlee';
 import express from 'express';
 import { URL } from 'url';
+import * as cheerio from 'cheerio';
 
 const app = express();
 app.use(express.json());
@@ -241,8 +242,133 @@ const seoExtractFn = () => {
   };
 };
 
+// Cheerio-based SEO extraction (static HTML — no Cloudflare issues)
+function cheerioSeoExtract($, requestUrl) {
+  const getMeta = (attr, val) => {
+    const el = $(`meta[${attr}="${val}"]`);
+    return el.length ? (el.attr('content') || el.attr('value') || '') : null;
+  };
+
+  const metaTags = {
+    title: $('title').text() || null,
+    description: getMeta('name', 'description') || getMeta('property', 'og:description'),
+    robots: getMeta('name', 'robots'),
+    canonical: $('link[rel="canonical"]').attr('href') || null,
+    ogTitle: getMeta('property', 'og:title'),
+    ogDescription: getMeta('property', 'og:description'),
+    ogImage: getMeta('property', 'og:image'),
+    ogType: getMeta('property', 'og:type'),
+    ogUrl: getMeta('property', 'og:url'),
+    ogSiteName: getMeta('property', 'og:site_name'),
+    twitterCard: getMeta('name', 'twitter:card'),
+    twitterTitle: getMeta('name', 'twitter:title'),
+    twitterDescription: getMeta('name', 'twitter:description'),
+    twitterImage: getMeta('name', 'twitter:image'),
+  };
+
+  const jsonLd = [];
+  $('script[type="application/ld+json"]').each((_, s) => {
+    try { jsonLd.push(JSON.parse($(s).html())); } catch {}
+  });
+
+  const headings = [];
+  $('h1,h2,h3,h4,h5,h6').each((_, h) => {
+    headings.push({ tag: h.tagName.toLowerCase(), text: $(h).text().trim().substring(0, 200) });
+  });
+
+  const images = [];
+  $('img').each((_, img) => {
+    const $img = $(img);
+    images.push({ src: $img.attr('src') || $img.attr('data-src') || null, alt: $img.attr('alt') || null, hasAlt: !!$img.attr('alt') });
+  });
+
+  const internal = [], external = [];
+  let baseOrigin;
+  try { baseOrigin = new URL(requestUrl).origin; } catch { baseOrigin = ''; }
+  $('a[href]').each((_, a) => {
+    try {
+      const href = new URL($(a).attr('href'), requestUrl);
+      if (href.origin === baseOrigin) internal.push(href.pathname + href.search);
+      else external.push(href.href);
+    } catch {}
+  });
+
+  const html = $.html();
+
+  return {
+    metaTags, jsonLd, headings, images,
+    internalLinks: [...new Set(internal)],
+    externalLinks: [...new Set(external)],
+    internalLinkCount: internal.length,
+    externalLinkCount: external.length,
+    html, contentSize: html.length,
+  };
+}
+
+// Plain fetch + cheerio deep crawl (no Crawlee dependency, no storage/dedup issues)
+const HTTP_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+};
+
+async function httpCrawl(startUrl, maxPages) {
+  const normalizeUrl = (u) => { try { const p = new URL(u); return p.origin + (p.pathname === '/' ? '' : p.pathname.replace(/\/$/, '')) + p.search; } catch { return u; } };
+  const visited = new Set();
+  const queue = [normalizeUrl(startUrl)];
+  const pages = [];
+  const origin = new URL(startUrl).origin;
+
+  while (queue.length > 0 && pages.length < maxPages) {
+    // Process up to 3 concurrent requests
+    const batch = [];
+    while (batch.length < 3 && queue.length > 0 && (pages.length + batch.length) < maxPages) {
+      const nextUrl = queue.shift();
+      const normalized = normalizeUrl(nextUrl.split('#')[0]);
+      if (visited.has(normalized)) continue;
+      visited.add(normalized);
+      batch.push(normalized);
+    }
+    if (batch.length === 0) break;
+
+    const results = await Promise.allSettled(batch.map(async (pageUrl) => {
+      const startTime = Date.now();
+      try {
+        const resp = await fetch(pageUrl, { headers: HTTP_HEADERS, signal: AbortSignal.timeout(15000), redirect: 'follow' });
+        if (!resp.ok) return { url: pageUrl, error: `HTTP ${resp.status}`, responseTimeMs: Date.now() - startTime };
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('text/html') && !ct.includes('application/xhtml')) {
+          return { url: pageUrl, error: `Non-HTML: ${ct}`, responseTimeMs: Date.now() - startTime };
+        }
+        const html = await resp.text();
+        const $ = cheerio.load(html);
+        const pageData = cheerioSeoExtract($, pageUrl);
+        const responseTime = Date.now() - startTime;
+
+        // Discover internal links
+        for (const link of pageData.internalLinks) {
+          try {
+            const abs = normalizeUrl(new URL(link, pageUrl).href.split('#')[0]);
+            if (abs.startsWith(origin) && !visited.has(abs)) queue.push(abs);
+          } catch {}
+        }
+
+        return { url: pageUrl, ...pageData, responseTimeMs: responseTime };
+      } catch (e) {
+        return { url: pageUrl, error: e.message, responseTimeMs: Date.now() - startTime };
+      }
+    }));
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') pages.push(r.value);
+    }
+  }
+  return pages;
+}
+
 app.post('/api/crawl/deep', async (req, res) => {
-  const { url, maxPages = 50 } = req.body;
+  const { url, maxPages = 50, mode = 'http' } = req.body;
   if (!url) return res.status(400).json({ error: 'url required' });
 
   let parsedBase;
@@ -256,42 +382,41 @@ app.post('/api/crawl/deep', async (req, res) => {
     fetchTextResource(`${origin}/sitemap.xml`),
   ]);
 
-  const pages = [];
+  let pages;
 
-  const crawler = new PlaywrightCrawler({
-    maxRequestsPerCrawl: maxPagesClamp,
-    headless: true,
-    requestHandlerTimeoutSecs: 30,
-    maxConcurrency: 2,
-    requestHandler: async ({ page, request, enqueueLinks }) => {
-      const startTime = Date.now();
-      await page.waitForLoadState('domcontentloaded');
-
-      const pageData = await page.evaluate(seoExtractFn);
-      const responseTime = Date.now() - startTime;
-
-      pages.push({ url: request.url, ...pageData, responseTimeMs: responseTime });
-
-      // Enqueue internal links (Crawlee handles deduplication)
-      await enqueueLinks({
-        strategy: 'same-domain',
-        transformRequestFunction: (req) => {
-          // Strip fragments
-          req.url = req.url.split('#')[0];
-          return req;
-        },
-      });
-    },
-    failedRequestHandler: async ({ request }) => {
-      pages.push({ url: request.url, error: 'Failed to crawl', scrapedAt: new Date().toISOString() });
-    },
-  });
-
-  await crawler.run([url]);
+  if (mode === 'playwright') {
+    // Playwright mode — full JS rendering, may get blocked by Cloudflare
+    pages = [];
+    const crawler = new PlaywrightCrawler({
+      maxRequestsPerCrawl: maxPagesClamp,
+      headless: true,
+      requestHandlerTimeoutSecs: 30,
+      maxConcurrency: 2,
+      requestHandler: async ({ page, request, enqueueLinks }) => {
+        const startTime = Date.now();
+        await page.waitForLoadState('domcontentloaded');
+        const pageData = await page.evaluate(seoExtractFn);
+        const responseTime = Date.now() - startTime;
+        pages.push({ url: request.url, ...pageData, responseTimeMs: responseTime });
+        await enqueueLinks({
+          strategy: 'same-domain',
+          transformRequestFunction: (req) => { req.url = req.url.split('#')[0]; return req; },
+        });
+      },
+      failedRequestHandler: async ({ request }) => {
+        pages.push({ url: request.url, error: 'Failed to crawl', scrapedAt: new Date().toISOString() });
+      },
+    });
+    await crawler.run([url]);
+  } else {
+    // HTTP mode (default) — plain fetch + cheerio, no Cloudflare issues
+    pages = await httpCrawl(url, maxPagesClamp);
+  }
 
   res.json({
     success: true,
     domain: origin,
+    mode,
     pagesCrawled: pages.length,
     robotsTxt: robotsTxt || null,
     sitemapXml: sitemapXml || null,

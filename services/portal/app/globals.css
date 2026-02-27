@@ -27,7 +27,7 @@
 html,
 body {
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   background: #000000;
   color: var(--text-primary);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display",
@@ -405,3 +405,86 @@ body {
   0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
 }
+
+/* ═══════════════════════════════════════════
+   JARVIS THEME — amber/orange sci-fi accents
+   Applied when <html class="dark jarvis"> is set.
+═══════════════════════════════════════════ */
+
+html.jarvis {
+  --jarvis-accent:       #f59e0b; /* amber-500 */
+  --jarvis-accent-light: #fbbf24; /* amber-400 */
+  --jarvis-accent-dim:   rgba(245, 158, 11, 0.15);
+  --jarvis-accent-glow:  rgba(245, 158, 11, 0.3);
+  --jarvis-accent-border:rgba(245, 158, 11, 0.35);
+}
+
+/* ── Jarvis: Application cards ─────────────────────────────────────────────── */
+html.jarvis .jarvis-app-card {
+  border-color: var(--jarvis-accent-border) !important;
+  box-shadow: 0 0 0 1px var(--jarvis-accent-dim) inset,
+              0 2px 8px rgba(0, 0, 0, 0.4);
+}
+html.jarvis .jarvis-app-card:hover {
+  border-color: var(--jarvis-accent) !important;
+  box-shadow: 0 0 16px var(--jarvis-accent-glow),
+              0 0 0 1px var(--jarvis-accent-dim) inset,
+              0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Jarvis: Open/action buttons on app cards ─────────────────────────────── */
+html.jarvis .jarvis-open-btn {
+  background: var(--jarvis-accent-dim) !important;
+  color: var(--jarvis-accent-light) !important;
+  border: 1px solid var(--jarvis-accent-border);
+}
+html.jarvis .jarvis-open-btn:hover {
+  background: rgba(245, 158, 11, 0.25) !important;
+  color: #fbbf24 !important;
+  box-shadow: 0 0 8px var(--jarvis-accent-glow);
+}
+
+/* ── Jarvis: Nav active state override ────────────────────────────────────── */
+html.jarvis .jarvis-nav-active {
+  background: var(--jarvis-accent-dim) !important;
+  color: var(--jarvis-accent-light) !important;
+  border: 1px solid var(--jarvis-accent-border) !important;
+  box-shadow: 0 0 8px var(--jarvis-accent-glow);
+}
+
+/* ── Jarvis: Stat card icon tint ──────────────────────────────────────────── */
+html.jarvis .jarvis-icon-accent {
+  color: var(--jarvis-accent-light) !important;
+  filter: drop-shadow(0 0 6px var(--jarvis-accent-glow));
+}
+
+/* ── Jarvis: Refresh / action buttons ─────────────────────────────────────── */
+html.jarvis button:focus-visible {
+  outline: 2px solid var(--jarvis-accent);
+  outline-offset: 2px;
+}
+
+/* ── Jarvis: Infrastructure toggle button ─────────────────────────────────── */
+html.jarvis .jarvis-infra-toggle {
+  border-top: 1px solid var(--jarvis-accent-border);
+}
+
+/* ── Jarvis: Scrollbar accent ─────────────────────────────────────────────── */
+html.jarvis ::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.2);
+}
+html.jarvis ::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.4);
+}
+
+/* ── Jarvis: Theme switcher active button glow ────────────────────────────── */
+html.jarvis .jarvis-switcher-active {
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+}
+
+/* ── Light theme: override dark-default html background ───────────────────── */
+html:not(.dark) body {
+  background: #ffffff;
+  color: #18181b;
+}
+

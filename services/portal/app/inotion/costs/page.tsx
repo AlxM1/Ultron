@@ -1,85 +1,600 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, DollarSign, TrendingUp, Cpu, BarChart2 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, Users, Calendar, BookOpen,
+  DollarSign, Map, ChevronUp, ChevronDown, ChevronsUpDown,
+} from "lucide-react";
 import ThemeToggle from "../../components/inotion/ThemeToggle";
 import GlobalSearch from "../../components/inotion/GlobalSearch";
-import dynamic from "next/dynamic";
 
-const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
-const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import("recharts").then((m) => m.CartesianGrid), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
-const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
-const Line = dynamic(() => import("recharts").then((m) => m.Line), { ssr: false });
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 
-interface DailyTrend {
-  date: string;
-  tokens: number;
-  cost: number;
-  cumulative: number;
+const NAV_ITEMS = [
+  { href: "/inotion",           label: "Dashboard", icon: LayoutDashboard },
+  { href: "/inotion/creators",  label: "Creators",  icon: Users           },
+  { href: "/inotion/agents",    label: "Agents",    icon: Calendar        },
+  { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen        },
+  { href: "/inotion/costs",     label: "Costs",     icon: DollarSign      },
+  { href: "/inotion/roadmap",   label: "Roadmap",   icon: Map             },
+];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface AgentRow {
+  name:      string;
+  model:     string;
+  tokensIn:  number;
+  tokensOut: number;
+  cacheRead: number;
+  costUSD:   number;
+  costCAD:   number;
+  runs:      number;
+  lastRun:   string;
+  category:  string;
 }
 
-interface ModelBreakdown {
-  model: string;
-  cost: number;
-  tokens: number;
-  pct: number;
+interface DailyEntry {
+  date:    string;
+  costUSD: number;
+  costCAD: number;
+  runs:    number;
 }
 
-interface AgentBreakdown {
-  agent: string;
-  cost: number;
-  tokens: number;
-  pct: number;
+interface CategoryEntry {
+  category: string;
+  costUSD:  number;
+  costCAD:  number;
+  pct:      number;
 }
 
 interface CostData {
-  updatedAt?: string;
-  totalCost: number;
-  totalTokens: number;
-  dailyTrend: DailyTrend[];
-  modelBreakdown: ModelBreakdown[];
-  agentBreakdown: AgentBreakdown[];
+  period:        string;
+  cadRate:       number;
+  resetTime:     string;
+  totalTokensIn: number;
+  totalTokensOut:number;
+  totalCostUSD:  number;
+  totalCostCAD:  number;
+  weeklyUSD:     number;
+  weeklyCAD:     number;
+  budgetUSD:     number;
+  budgetUsedPct: number;
+  agents:        AgentRow[];
+  daily:         DailyEntry[];
+  categories:    CategoryEntry[];
 }
 
-function formatCurrency(n: number): string {
-  if (!n || n === 0) return "$0.00";
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtUSD(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-function formatTokens(n: number): string {
-  if (!n) return "0";
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
-  return n.toString();
+function fmtCAD(n: number): string {
+  return `CA$${n.toFixed(2)}`;
 }
 
-const MODEL_COLORS: Record<string, string> = {
-  "claude-opus-4-6": "#8b5cf6",
-  "claude-sonnet-4-6": "#3b82f6",
-  "claude-haiku": "#06b6d4",
-  "gpt-4": "#10b981",
-  "whisper": "#f59e0b",
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function shortDate(iso: string): string {
+  // "2026-02-19" → "Feb 19"
+  const d = new Date(iso + "T12:00:00Z");
+  return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function modelLabel(model: string): string {
+  if (model.includes("opus"))   return "opus-4-6";
+  if (model.includes("sonnet")) return "sonnet-4-6";
+  if (model.includes("haiku"))  return "haiku-4-6";
+  return model;
+}
+
+function modelBadgeClass(model: string): string {
+  if (model.includes("opus"))
+    return "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700";
+  if (model.includes("sonnet"))
+    return "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700";
+  return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700";
+}
+
+function costColor(usd: number): string {
+  if (usd < 0.50) return "text-emerald-600 dark:text-emerald-400";
+  if (usd < 2.00) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Interactive":       "#8b5cf6",
+  "Cron Jobs":         "#3b82f6",
+  "Content Pipeline":  "#10b981",
+  "AI/Analysis":       "#f59e0b",
+  "Monitoring":        "#6366f1",
+  "Maintenance":       "#64748b",
 };
 
-function getModelColor(model: string, index: number): string {
-  const fallbacks = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
-  for (const [key, color] of Object.entries(MODEL_COLORS)) {
-    if (model.toLowerCase().includes(key)) return color;
-  }
-  return fallbacks[index % fallbacks.length];
+// ─── Token Reset Countdown ────────────────────────────────────────────────────
+
+function TokenResetCountdown({ resetTime }: { resetTime: string }) {
+  const [countdown, setCountdown] = useState<{ h: number; m: number; s: number; urgent: boolean; close: boolean }>({
+    h: 0, m: 0, s: 0, urgent: false, close: false,
+  });
+
+  const computeNext = useCallback(() => {
+    const now = new Date();
+    // Next Thursday 07:00 PST = UTC-8 → 15:00 UTC
+    const target = new Date(now);
+    const dayOfWeek = now.getUTCDay(); // 0=Sun, 4=Thu
+    const daysUntilThursday = (4 - dayOfWeek + 7) % 7;
+    target.setUTCDate(target.getUTCDate() + daysUntilThursday);
+    target.setUTCHours(15, 0, 0, 0);
+    if (target <= now) {
+      target.setUTCDate(target.getUTCDate() + 7);
+    }
+    const ms = target.getTime() - now.getTime();
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return { h, m, s, urgent: h < 2, close: m < 30 && h === 0 };
+  }, []);
+
+  useEffect(() => {
+    setCountdown(computeNext());
+    const id = setInterval(() => setCountdown(computeNext()), 1000);
+    return () => clearInterval(id);
+  }, [computeNext]);
+
+  const { h, m, s, urgent, close } = countdown;
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  let bannerClass = "bg-zinc-900/5 dark:bg-zinc-100/5 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400";
+  if (close)   bannerClass = "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300";
+  else if (urgent) bannerClass = "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300";
+
+  const label = close
+    ? "Almost there — token reset imminent"
+    : `Next token reset in ${h}h ${pad(m)}m ${pad(s)}s — ${resetTime}`;
+
+  return (
+    <div className={`rounded-xl border px-5 py-3 text-xs font-mono flex items-center justify-between ${bannerClass}`}>
+      <span>{label}</span>
+      <span className="opacity-60 text-[10px] uppercase tracking-widest">Weekly Reset</span>
+    </div>
+  );
 }
 
+// ─── Summary Cards ────────────────────────────────────────────────────────────
+
+function SummaryCards({ data }: { data: CostData }) {
+  const budgetRemaining = 100 - data.budgetUsedPct;
+  const barColor =
+    budgetRemaining > 50 ? "bg-emerald-500" :
+    budgetRemaining > 20 ? "bg-amber-500"   :
+    "bg-red-500";
+
+  const cards = [
+    {
+      label:   "TODAY'S SPEND",
+      primary: fmtUSD(data.totalCostUSD),
+      sub:     fmtCAD(data.totalCostCAD),
+      icon:    DollarSign,
+      accent:  "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label:   "WEEKLY SPEND",
+      primary: fmtUSD(data.weeklyUSD),
+      sub:     fmtCAD(data.weeklyCAD),
+      icon:    Map,
+      accent:  "text-violet-600 dark:text-violet-400",
+    },
+    {
+      label:   "TOKENS TODAY",
+      primary: fmtTokens(data.totalTokensIn + data.totalTokensOut),
+      sub:     `${fmtTokens(data.totalTokensIn)} in / ${fmtTokens(data.totalTokensOut)} out`,
+      icon:    BookOpen,
+      accent:  "text-emerald-600 dark:text-emerald-400",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map(c => {
+        const Icon = c.icon;
+        return (
+          <div
+            key={c.label}
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                {c.label}
+              </p>
+              <Icon size={12} className={c.accent} />
+            </div>
+            <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{c.primary}</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{c.sub}</p>
+          </div>
+        );
+      })}
+
+      {/* Budget card with progress bar */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+            BUDGET REMAINING
+          </p>
+          <DollarSign size={12} className="text-amber-500" />
+        </div>
+        <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{budgetRemaining}%</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Resets {data.resetTime}</p>
+        <div className="mt-3 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5">
+          <div
+            className={`h-full rounded-full transition-all ${barColor}`}
+            style={{ width: `${budgetRemaining}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 font-mono">
+          {fmtUSD(data.weeklyUSD)} / {fmtUSD(data.budgetUSD)} used
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── 7-Day Spend Chart (pure CSS) ────────────────────────────────────────────
+
+function SpendChart({ daily }: { daily: DailyEntry[] }) {
+  const [currency, setCurrency] = useState<"USD" | "CAD">("USD");
+  const [tooltip, setTooltip] = useState<{ entry: DailyEntry; x: number; y: number } | null>(null);
+
+  const values = daily.map(d => currency === "USD" ? d.costUSD : d.costCAD);
+  const max = Math.max(...values, 0.01);
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          7-Day Spend
+        </h2>
+        <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+          {(["USD", "CAD"] as const).map(c => (
+            <button
+              key={c}
+              onClick={() => setCurrency(c)}
+              className={`text-xs px-3 py-1 transition-colors ${
+                currency === c
+                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium"
+                  : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              } ${c === "CAD" ? "border-l border-zinc-200 dark:border-zinc-700" : ""}`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative flex items-end gap-2 h-40" onMouseLeave={() => setTooltip(null)}>
+        {daily.map((entry, i) => {
+          const val   = currency === "USD" ? entry.costUSD : entry.costCAD;
+          const heightPct = (val / max) * 100;
+          // Gradient darkness by spend level
+          const opacity = 0.35 + (val / max) * 0.65;
+
+          return (
+            <div
+              key={entry.date}
+              className="flex flex-col items-center flex-1 group cursor-default"
+              onMouseEnter={e => {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setTooltip({ entry, x: rect.left, y: rect.top });
+              }}
+            >
+              <div className="w-full flex flex-col justify-end" style={{ height: "120px" }}>
+                <div
+                  className="w-full rounded-t-sm transition-all duration-300 group-hover:brightness-110"
+                  style={{
+                    height: `${Math.max(heightPct, 2)}%`,
+                    backgroundColor: `rgba(59, 130, 246, ${opacity})`,
+                  }}
+                />
+              </div>
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 font-mono text-center leading-tight">
+                {shortDate(entry.date)}
+              </p>
+              <p className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400 font-mono">
+                {currency === "USD" ? `$${val.toFixed(2)}` : `CA$${val.toFixed(2)}`}
+              </p>
+            </div>
+          );
+        })}
+
+        {/* Tooltip */}
+        {tooltip && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-44 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg shadow-xl p-3 pointer-events-none z-20 text-[10px] leading-relaxed">
+            <p className="font-semibold mb-1">{shortDate(tooltip.entry.date)}</p>
+            <p>USD: <span className="font-mono">{fmtUSD(tooltip.entry.costUSD)}</span></p>
+            <p>CAD: <span className="font-mono">{fmtCAD(tooltip.entry.costCAD)}</span></p>
+            <p>Runs: <span className="font-mono">{tooltip.entry.runs}</span></p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Agent Cost Table ─────────────────────────────────────────────────────────
+
+type SortKey = "name" | "runs" | "tokensIn" | "tokensOut" | "cacheRead" | "costUSD" | "costCAD";
+type SortDir = "asc" | "desc";
+
+function AgentTable({ agents }: { agents: AgentRow[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>("costUSD");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  const sorted = [...agents].sort((a, b) => {
+    const av = a[sortKey] as number | string;
+    const bv = b[sortKey] as number | string;
+    const cmp = typeof av === "string" ? (av as string).localeCompare(bv as string) : (av as number) - (bv as number);
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const totalIn   = agents.reduce((s, a) => s + a.tokensIn,  0);
+  const totalOut  = agents.reduce((s, a) => s + a.tokensOut, 0);
+  const totalCache= agents.reduce((s, a) => s + a.cacheRead, 0);
+  const totalUSD  = agents.reduce((s, a) => s + a.costUSD,   0);
+  const totalCAD  = agents.reduce((s, a) => s + a.costCAD,   0);
+  const totalRuns = agents.reduce((s, a) => s + a.runs,      0);
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <ChevronsUpDown size={10} className="opacity-30" />;
+    return sortDir === "asc"
+      ? <ChevronUp size={10} className="text-blue-500" />
+      : <ChevronDown size={10} className="text-blue-500" />;
+  }
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          Agent Cost Breakdown
+        </h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30">
+              {([
+                ["name",      "Agent"     ],
+                [null,        "Model"     ],
+                ["runs",      "Runs"      ],
+                ["tokensIn",  "Tokens In" ],
+                ["tokensOut", "Tokens Out"],
+                ["cacheRead", "Cache Read"],
+                ["costUSD",   "Cost USD"  ],
+                ["costCAD",   "Cost CAD"  ],
+              ] as [SortKey | null, string][]).map(([key, label]) => (
+                <th
+                  key={label}
+                  className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none ${key ? "cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300" : ""}`}
+                  onClick={() => key && handleSort(key)}
+                >
+                  <span className="flex items-center gap-1">
+                    {label}
+                    {key && <SortIcon col={key} />}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/80">
+            {sorted.map(agent => {
+              const wikiUrl = `https://inotion.00raiser.space/search/${encodeURIComponent(agent.name)}`;
+              return (
+                <tr
+                  key={agent.name}
+                  className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer relative"
+                  onClick={() => window.open(wikiUrl, "_blank")}
+                >
+                  {/* Agent name with tooltip */}
+                  <td className="px-4 py-3 font-medium text-zinc-800 dark:text-zinc-200 relative">
+                    <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {agent.name}
+                    </span>
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-4 mb-2 px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 w-52 leading-relaxed">
+                      <div className="font-semibold mb-0.5">{agent.name}</div>
+                      <div className="opacity-75">{agent.category}</div>
+                      <div className="opacity-50 mt-0.5">Last: {new Date(agent.lastRun).toLocaleString()}</div>
+                      <div className="mt-1 opacity-50 text-[9px]">Click to view in Wiki</div>
+                    </div>
+                  </td>
+
+                  {/* Model badge */}
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-medium ${modelBadgeClass(agent.model)}`}>
+                      {modelLabel(agent.model)}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                    {agent.runs > 0 ? agent.runs : "—"}
+                  </td>
+
+                  <td className="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400 font-mono">
+                    {fmtTokens(agent.tokensIn)}
+                  </td>
+
+                  <td className="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400 font-mono">
+                    {fmtTokens(agent.tokensOut)}
+                  </td>
+
+                  <td className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-500 font-mono">
+                    {agent.cacheRead > 0 ? fmtTokens(agent.cacheRead) : "—"}
+                  </td>
+
+                  <td className={`px-4 py-3 text-xs font-semibold font-mono ${costColor(agent.costUSD)}`}>
+                    {fmtUSD(agent.costUSD)}
+                  </td>
+
+                  <td className="px-4 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono">
+                    {fmtCAD(agent.costCAD)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+
+          {/* Footer totals */}
+          <tfoot>
+            <tr className="border-t-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+              <td className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                Total
+              </td>
+              <td className="px-4 py-3" />
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300">
+                {totalRuns}
+              </td>
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300">
+                {fmtTokens(totalIn)}
+              </td>
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300">
+                {fmtTokens(totalOut)}
+              </td>
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300">
+                {fmtTokens(totalCache)}
+              </td>
+              <td className="px-4 py-3 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-50">
+                {fmtUSD(totalUSD)}
+              </td>
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-500 dark:text-zinc-400">
+                {fmtCAD(totalCAD)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Category Donut (pure CSS conic-gradient) ─────────────────────────────────
+
+function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  // Build conic-gradient stops
+  let angle = 0;
+  const stops: string[] = [];
+  const segments = categories.map(c => {
+    const color = CATEGORY_COLORS[c.category] ?? "#94a3b8";
+    const start = angle;
+    const end   = angle + (c.pct / 100) * 360;
+    stops.push(`${color} ${start.toFixed(1)}deg ${end.toFixed(1)}deg`);
+    angle = end;
+    return { ...c, color, start, end };
+  });
+
+  const gradient = `conic-gradient(from 0deg, ${stops.join(", ")})`;
+
+  const activeCategory = hovered ? categories.find(c => c.category === hovered) : null;
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-5">
+        Cost by Category
+      </h2>
+
+      <div className="flex flex-col sm:flex-row items-center gap-8">
+        {/* Donut ring */}
+        <div className="relative flex-shrink-0">
+          <div
+            className="w-40 h-40 rounded-full transition-all duration-300"
+            style={{
+              background: gradient,
+              mask: "radial-gradient(circle, transparent 48%, black 49%)",
+              WebkitMask: "radial-gradient(circle, transparent 48%, black 49%)",
+            }}
+          />
+          {/* Center label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            {activeCategory ? (
+              <>
+                <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{fmtUSD(activeCategory.costUSD)}</p>
+                <p className="text-[9px] text-zinc-500 dark:text-zinc-400 text-center leading-tight mt-0.5 max-w-[72px]">
+                  {activeCategory.category}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center leading-tight">Today</p>
+                <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Spend</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex-1 space-y-2.5 w-full">
+          {segments.map(seg => (
+            <div
+              key={seg.category}
+              className="flex items-center gap-2.5 cursor-default group"
+              onMouseEnter={() => setHovered(seg.category)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <div
+                className="w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform group-hover:scale-125"
+                style={{ backgroundColor: seg.color }}
+              />
+              <span className="text-xs text-zinc-700 dark:text-zinc-300 flex-1 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+                {seg.category}
+              </span>
+              <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400">{seg.pct}%</span>
+              <span className="text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300 w-14 text-right">
+                {fmtUSD(seg.costUSD)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Label ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+      {children}
+    </h2>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function CostsPage() {
-  const [data, setData] = useState<CostData | null>(null);
+  const pathname  = usePathname();
+  const [data, setData]       = useState<CostData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [chartMode, setChartMode] = useState<"daily" | "cumulative">("daily");
+  const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -87,11 +602,10 @@ export default function CostsPage() {
         const res = await fetch("/api/costs");
         if (res.ok) {
           const json = await res.json();
-          if (json.error) {
-            setError(json.error);
-          } else {
-            setData(json);
-          }
+          if (json.error) setError(json.error);
+          else setData(json);
+        } else {
+          setError(`API error ${res.status}`);
         }
       } catch (e) {
         setError("Failed to load cost data");
@@ -101,199 +615,173 @@ export default function CostsPage() {
     load();
   }, []);
 
-  const today = data?.dailyTrend?.at(-1);
-  const yesterday = data?.dailyTrend?.at(-2);
-  const avgDaily = data?.dailyTrend && data.dailyTrend.length > 0
-    ? data.dailyTrend.reduce((s, d) => s + d.cost, 0) / data.dailyTrend.length
-    : 0;
-
-  const chartData = data?.dailyTrend?.slice(-30).map((d) => ({
-    date: d.date.slice(5), // MM-DD
-    cost: d.cost,
-    cumulative: d.cumulative,
-  })) ?? [];
-
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-screen-2xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/inotion" className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
-              <ArrowLeft size={12} />
-              Dashboard
-            </Link>
-            <span className="text-zinc-200 dark:text-zinc-700">/</span>
-            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Cost Tracker</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <GlobalSearch />
-            <ThemeToggle />
+        <div className="max-w-screen-2xl mx-auto px-6">
+          <div className="h-14 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2.5">
+                <a href="/" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+                  Portal
+                </a>
+                <span className="text-zinc-200 dark:text-zinc-700">/</span>
+                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                  00Raiser HQ
+                </span>
+              </div>
+
+              <nav className="hidden lg:flex items-center gap-1">
+                {NAV_ITEMS.map(item => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isActive
+                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      <Icon size={12} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <GlobalSearch />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
+      {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8">
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Cost Tracker</h1>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              API spend across all models and agents
-              {data?.updatedAt && (
-                <span className="ml-2 font-mono text-xs text-zinc-400 dark:text-zinc-600">
-                  Updated {new Date(data.updatedAt).toLocaleTimeString()}
-                </span>
-              )}
-            </p>
-          </div>
+
+        {/* Page title */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Cost Intelligence
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Token usage and spend across all autonomous agents. Resets weekly on Thursday 07:00 AM PST.
+          </p>
         </div>
 
+        {/* Error banner */}
         {error && (
-          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 text-sm text-amber-700 dark:text-amber-400">
-            {error} — Check that cost-ledger.xlsx is mounted at /data/costs/
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-3 text-sm text-red-700 dark:text-red-400">
+            {error}
           </div>
         )}
 
-        {/* Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Total Spend", value: formatCurrency(data?.totalCost ?? 0), icon: DollarSign, color: "text-violet-600 dark:text-violet-400" },
-            { label: "Today", value: today ? formatCurrency(today.cost) : "—", icon: TrendingUp, color: "text-blue-600 dark:text-blue-400" },
-            { label: "Avg Daily", value: formatCurrency(avgDaily), icon: BarChart2, color: "text-emerald-600 dark:text-emerald-400" },
-            { label: "Total Tokens", value: data ? formatTokens(data.totalTokens) : "—", icon: Cpu, color: "text-amber-600 dark:text-amber-400" },
-          ].map((card) => {
-            const Icon = card.icon;
-            return (
-              <div key={card.label} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{card.label}</p>
-                  <Icon size={12} className={card.color} />
-                </div>
-                <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {loading ? <div className="h-7 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" /> : card.value}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Daily trend chart */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Spend Trend (Last 30 Days)
-            </h2>
-            <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-              <button
-                onClick={() => setChartMode("daily")}
-                className={`text-xs px-3 py-1 transition-colors ${chartMode === "daily" ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium" : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"}`}
-              >
-                Daily
-              </button>
-              <button
-                onClick={() => setChartMode("cumulative")}
-                className={`text-xs px-3 py-1 border-l border-zinc-200 dark:border-zinc-700 transition-colors ${chartMode === "cumulative" ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium" : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"}`}
-              >
-                Cumulative
-              </button>
+        {/* Loading skeleton */}
+        {loading && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-4 gap-4">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-28 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              ))}
             </div>
+            <div className="h-56 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="h-72 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
           </div>
-          {loading ? (
-            <div className="h-56 flex items-center justify-center">
-              <div className="text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">Loading chart...</div>
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="h-56 flex flex-col items-center justify-center text-center">
-              <DollarSign size={24} className="text-zinc-300 dark:text-zinc-700 mb-2" />
-              <p className="text-sm text-zinc-400 dark:text-zinc-500">No cost data available</p>
-              <p className="text-xs text-zinc-300 dark:text-zinc-700 mt-1">Mount cost-ledger.xlsx at /data/costs/</p>
-            </div>
-          ) : chartMode === "daily" ? (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v.toFixed(2)}`} />
-                  <Tooltip formatter={(v: number) => [`$${v.toFixed(4)}`, "Cost"]} />
-                  <Bar dataKey="cost" fill="#3b82f6" radius={[2, 2, 0, 0]} maxBarSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v.toFixed(2)}`} />
-                  <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`, "Cumulative"]} />
-                  <Line type="monotone" dataKey="cumulative" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Two column: Model + Agent breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Model breakdown */}
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">By Model</h2>
-            {loading ? (
-              <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />)}</div>
-            ) : !data?.modelBreakdown?.length ? (
-              <div className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-8">No model data</div>
-            ) : (
-              <div className="space-y-3">
-                {data.modelBreakdown.map((m, i) => (
-                  <div key={m.model}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate flex-1 mr-4">{m.model}</span>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(m.cost)}</span>
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-1.5">{m.pct}%</span>
+        {data && (
+          <>
+            {/* Section 1: Summary Cards */}
+            <section>
+              <SectionLabel>Overview</SectionLabel>
+              <div className="mt-3">
+                <SummaryCards data={data} />
+              </div>
+            </section>
+
+            {/* Section 2: 7-Day Spend Chart */}
+            <section>
+              <SectionLabel>7-Day Spend</SectionLabel>
+              <div className="mt-3">
+                <SpendChart daily={data.daily} />
+              </div>
+            </section>
+
+            {/* Section 3: Agent Cost Table */}
+            <section>
+              <SectionLabel>Per-Agent Breakdown</SectionLabel>
+              <div className="mt-3">
+                <AgentTable agents={data.agents} />
+              </div>
+            </section>
+
+            {/* Section 4: Category Donut */}
+            <section>
+              <SectionLabel>Cost Distribution</SectionLabel>
+              <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <CategoryDonut categories={data.categories} />
+
+                {/* Model price reference card */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">
+                    Model Pricing Reference
+                  </h2>
+                  <div className="space-y-4">
+                    {[
+                      { label: "Opus 4.6",   model: "anthropic/claude-opus-4-6",   input: 15.00, output: 75.00, cache: 1.50, pill: "opus"   },
+                      { label: "Sonnet 4.6", model: "anthropic/claude-sonnet-4-6", input:  3.00, output: 15.00, cache: 0.30, pill: "sonnet" },
+                      { label: "Haiku 4.6",  model: "anthropic/claude-haiku-4-6",  input:  0.25, output:  1.25, cache: 0.03, pill: "haiku"  },
+                    ].map(m => (
+                      <div key={m.label} className="flex items-start gap-3">
+                        <span className={`mt-0.5 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-medium flex-shrink-0 ${
+                          m.pill === "opus"   ? "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700" :
+                          m.pill === "sonnet" ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700" :
+                                                "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700"
+                        }`}>
+                          {m.label}
+                        </span>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                          <span className="font-mono">${m.input}/M</span> in
+                          {" · "}
+                          <span className="font-mono">${m.output}/M</span> out
+                          {" · "}
+                          <span className="font-mono">${m.cache}/M</span> cache
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${m.pct}%`, backgroundColor: getModelColor(m.model, i) }}
-                      />
-                    </div>
+                    ))}
                   </div>
-                ))}
+                  <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                      1 USD = {data.cadRate.toFixed(4)} CAD (live rate)
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </section>
 
-          {/* Agent breakdown */}
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">By Agent</h2>
-            {loading ? (
-              <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse" />)}</div>
-            ) : !data?.agentBreakdown?.length ? (
-              <div className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-8">No agent data</div>
-            ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto">
-                {data.agentBreakdown.map((a) => (
-                  <div key={a.agent}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate flex-1 mr-4">{a.agent}</span>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(a.cost)}</span>
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-1.5">{a.pct}%</span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${a.pct}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+            {/* Section 5: Token Reset Countdown */}
+            <section>
+              <TokenResetCountdown resetTime={data.resetTime} />
+            </section>
+          </>
+        )}
+
       </main>
+
+      {/* Footer */}
+      <footer className="max-w-screen-2xl mx-auto px-6 py-6 mt-8 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center justify-between text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
+          <span>00Raiser Platform — Autonomous AI Operations</span>
+          <span>Target: World Mobile go-live Sept/Oct 2026</span>
+        </div>
+      </footer>
     </div>
   );
 }

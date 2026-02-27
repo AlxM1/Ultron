@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map } from "lucide-react";
+import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
 import GlobalSearch from "../components/inotion/GlobalSearch";
 import StatsCards from "../components/inotion/StatsCards";
@@ -37,14 +39,12 @@ function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
 
   useEffect(() => {
     if (!agents.length) return;
-    // Generate synthetic live activity from agent schedules
     const now = Date.now();
     const entries: ActivityEntry[] = [];
 
     for (const agent of agents) {
-      // Always-running agents show as recently completed
       if (agent.category === "always-running") {
-        const msAgo = Math.floor(Math.random() * 600000); // up to 10 min ago
+        const msAgo = Math.floor(Math.random() * 600000);
         entries.push({
           id: `${agent.id}-${now - msAgo}`,
           agent: agent.name,
@@ -53,7 +53,6 @@ function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
           duration: `${(Math.random() * 3 + 0.5).toFixed(1)}s`,
         });
       } else if (agent.category === "daily") {
-        // Show if it ran today
         const parts = agent.schedule.split(" ");
         const hourPart = parseInt(parts[1]);
         const runTime = new Date();
@@ -138,9 +137,13 @@ function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
   );
 }
 
-// ─── Main Dashboard Page ──────────────────────────────────────────────────────
+// ─── Inner dashboard (has access to ThemeProvider context) ───────────────────
 
-export default function PortalDashboard() {
+function DashboardInner() {
+  const pathname = usePathname();
+  const { theme } = useTheme();
+  const isJarvis = theme === "jarvis";
+
   const [agents, setAgents] = useState<AgentJob[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
 
@@ -179,16 +182,19 @@ export default function PortalDashboard() {
               <nav className="hidden lg:flex items-center gap-1">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
-                  const isActive = typeof window !== "undefined" && window.location.pathname === item.href;
+                  const isActive = pathname === item.href;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      className={[
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
                         isActive
-                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
-                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      }`}
+                          ? isJarvis
+                            ? "jarvis-nav-active"
+                            : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                      ].join(" ")}
                     >
                       <Icon size={12} />
                       {item.label}
@@ -198,7 +204,7 @@ export default function PortalDashboard() {
               </nav>
             </div>
 
-            {/* Right: search + theme */}
+            {/* Right: search + theme switcher */}
             <div className="flex items-center gap-3">
               <GlobalSearch />
               <ThemeToggle />
@@ -228,37 +234,19 @@ export default function PortalDashboard() {
           </div>
         </section>
 
-        {/* Two-column: Calendar + Activity */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-          {/* Calendar — 2/3 width */}
-          <section className="xl:col-span-2">
-            <SectionLabel>Agent Schedule</SectionLabel>
-            <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-              {agentsLoading ? (
-                <div className="h-48 flex items-center justify-center">
-                  <div className="text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">Loading schedule...</div>
-                </div>
-              ) : (
-                <PortalCalendar agents={agents} />
-              )}
-            </div>
-          </section>
-
-          {/* Live Activity Feed — 1/3 width */}
-          <section className="xl:col-span-1">
-            <SectionLabel>Live Activity</SectionLabel>
-            <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                  {agents.filter((a) => a.category === "always-running").length} agents running
-                </span>
+        {/* Calendar — full width, large */}
+        <section>
+          <SectionLabel>Agent Schedule</SectionLabel>
+          <div className="mt-3">
+            {agentsLoading ? (
+              <div className="h-48 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div className="text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">Loading schedule...</div>
               </div>
-              <LiveActivityFeed agents={agents} />
-            </div>
-          </section>
-        </div>
+            ) : (
+              <PortalCalendar agents={agents} />
+            )}
+          </div>
+        </section>
 
         {/* Activity Heatmap */}
         <section>
@@ -271,9 +259,9 @@ export default function PortalDashboard() {
           </div>
         </section>
 
-        {/* System Health */}
+        {/* System Health — Applications + Infrastructure */}
         <section>
-          <SectionLabel>Infrastructure</SectionLabel>
+          <SectionLabel>System Health</SectionLabel>
           <div className="mt-3">
             <HealthPanel />
           </div>
@@ -307,29 +295,45 @@ export default function PortalDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
-                  {agents.map((agent) => (
-                    <tr key={agent.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-zinc-800 dark:text-zinc-200">{agent.name}</td>
-                      <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell line-clamp-1">
-                        {(agent as any).role ?? "—"}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{agent.scheduleDesc}</td>
-                      <td className="px-5 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono hidden md:table-cell">
-                        {(agent as any).model ?? "—"}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          agent.category === "always-running"
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                            : agent.category === "daily"
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                            : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                        }`}>
-                          {agent.category}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {agents.map((agent) => {
+                    const wikiUrl = `https://inotion.00raiser.space/search/${encodeURIComponent(agent.name)}`;
+                    return (
+                      <tr
+                        key={agent.id}
+                        className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer relative"
+                        onClick={() => window.open(wikiUrl, "_blank")}
+                      >
+                        <td className="px-5 py-3 font-medium text-zinc-800 dark:text-zinc-200 relative">
+                          <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{agent.name}</span>
+                          <div className="absolute bottom-full left-4 mb-2 px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 w-56 leading-relaxed">
+                            <div className="font-semibold mb-0.5">{agent.name}</div>
+                            <div className="opacity-80">{(agent as any).description ?? (agent as any).role ?? "Autonomous agent"}</div>
+                            <div className="opacity-60 mt-0.5">{agent.scheduleDesc}</div>
+                            <div className="mt-1 opacity-60 text-[9px]">Click to view in Wiki</div>
+                            <div className="absolute top-full left-6 w-2 h-2 bg-zinc-900 dark:bg-zinc-100 rotate-45 -mt-1" />
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell line-clamp-1">
+                          {(agent as any).role ?? "—"}
+                        </td>
+                        <td className="px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{agent.scheduleDesc}</td>
+                        <td className="px-5 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono hidden md:table-cell">
+                          {(agent as any).model ?? "—"}
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            agent.category === "always-running"
+                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                              : agent.category === "daily"
+                              ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                              : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                          }`}>
+                            {agent.category}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -346,6 +350,16 @@ export default function PortalDashboard() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ─── Root export — wraps everything in ThemeProvider ─────────────────────────
+
+export default function PortalDashboard() {
+  return (
+    <ThemeProvider>
+      <DashboardInner />
+    </ThemeProvider>
   );
 }
 

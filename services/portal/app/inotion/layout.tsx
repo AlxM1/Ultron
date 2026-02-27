@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ThemeProvider } from "../components/inotion/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "00Raiser — Operations Portal",
@@ -10,5 +11,5 @@ export default function INotionLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <ThemeProvider>{children}</ThemeProvider>;
 }

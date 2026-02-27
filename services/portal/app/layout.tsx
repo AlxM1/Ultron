@@ -5,6 +5,9 @@ import SessionProvider from "./components/SessionProvider";
 export const metadata: Metadata = {
   title: "00raiser Portal",
   description: "Admin dashboard for the 00raiser platform",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

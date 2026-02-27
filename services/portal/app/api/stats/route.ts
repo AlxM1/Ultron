@@ -17,6 +17,50 @@ async function tryFetch(url: string, headers: Record<string, string> = {}) {
   }
 }
 
+// Services to health-check (mirrors HealthPanel.tsx)
+const HEALTH_URLS: { id: string; url: string }[] = [
+  { id: "agentsmith-frontend", url: "http://raiser-agentsmith-frontend:3000" },
+  { id: "agentsmith-admin", url: "http://raiser-agentsmith-admin:3001" },
+  { id: "outline", url: "http://raiser-outline:3000/api/auth.info" },
+  { id: "cortex", url: "http://raiser-cortex:3011/health" },
+  { id: "content-intel", url: "http://raiser-content-intel:3015/health" },
+  { id: "krya", url: "http://raiser-krya:3000" },
+  { id: "agentsmith-backend", url: "http://raiser-agentsmith-backend:4000/health" },
+  { id: "youtubedl", url: "http://raiser-youtubedl:8000/health" },
+  { id: "newsletter", url: "http://raiser-newsletter-pipeline:8000/health" },
+  { id: "apify", url: "http://raiser-apify:8000/health" },
+  { id: "persona", url: "http://raiser-persona-pipeline:8500/health" },
+  { id: "whisperflow", url: "http://raiser-whisperflow:8766/health" },
+  { id: "searxng", url: "http://raiser-searxng:8080" },
+  { id: "authentik", url: "http://raiser-authentik-server:9000/-/health/ready/" },
+  { id: "voiceforge", url: "http://localhost:8001/health" },
+  { id: "portal", url: "http://localhost:3020" },
+  { id: "gpu-tts", url: "http://10.25.10.60:8001/health" },
+];
+
+// Non-HTTP services assumed online
+const NON_HTTP_COUNT = 2; // postgres, redis
+
+async function countHealthyServices(): Promise<number> {
+  const results = await Promise.all(
+    HEALTH_URLS.map(async (svc) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(svc.url, {
+          signal: controller.signal,
+          headers: { "User-Agent": "00raiser-Portal" },
+        });
+        clearTimeout(timeout);
+        return res.ok;
+      } catch {
+        return false;
+      }
+    })
+  );
+  return results.filter(Boolean).length + NON_HTTP_COUNT;
+}
+
 export async function GET() {
   let stats = {
     totalCreators: 0,
@@ -28,36 +72,42 @@ export async function GET() {
     totalServices: 19,
   };
 
-  try {
-    const data = await tryFetch(`${CONTENT_INTEL_URL}/api/stats`, {
-      "X-API-Key": API_KEY,
-    });
+  // Run content-intel stats and health checks concurrently
+  const [contentData, healthyCount] = await Promise.all([
+    (async () => {
+      try {
+        const data = await tryFetch(`${CONTENT_INTEL_URL}/api/stats`, {
+          "X-API-Key": API_KEY,
+        });
+        if (data) return data;
 
-    if (data) {
-      stats = {
-        totalCreators: data.total_creators ?? data.creators ?? 0,
-        totalTranscripts: data.total_transcripts ?? data.transcripts ?? 0,
-        totalContent: data.total_content ?? data.content_items ?? 0,
-        activeAgents: 17,
-        todayCost: data.today_cost ?? 0,
-        healthyServices: 0,
-        totalServices: 19,
-      };
+        const [creators, transcripts, content] = await Promise.all([
+          tryFetch(`${CONTENT_INTEL_URL}/api/creators?limit=1`, { "X-API-Key": API_KEY }),
+          tryFetch(`${CONTENT_INTEL_URL}/api/transcripts?limit=1`, { "X-API-Key": API_KEY }),
+          tryFetch(`${CONTENT_INTEL_URL}/api/content?limit=1`, { "X-API-Key": API_KEY }),
+        ]);
+        return { creators, transcripts, content, _fallback: true };
+      } catch {
+        return null;
+      }
+    })(),
+    countHealthyServices(),
+  ]);
+
+  if (contentData) {
+    if (contentData._fallback) {
+      if (contentData.creators) stats.totalCreators = contentData.creators.total ?? contentData.creators.count ?? (Array.isArray(contentData.creators) ? contentData.creators.length : 0);
+      if (contentData.transcripts) stats.totalTranscripts = contentData.transcripts.total ?? contentData.transcripts.count ?? (Array.isArray(contentData.transcripts) ? contentData.transcripts.length : 0);
+      if (contentData.content) stats.totalContent = contentData.content.total ?? contentData.content.count ?? (Array.isArray(contentData.content) ? contentData.content.length : 0);
     } else {
-      // Try individual endpoints
-      const [creators, transcripts, content] = await Promise.all([
-        tryFetch(`${CONTENT_INTEL_URL}/api/creators?limit=1`, { "X-API-Key": API_KEY }),
-        tryFetch(`${CONTENT_INTEL_URL}/api/transcripts?limit=1`, { "X-API-Key": API_KEY }),
-        tryFetch(`${CONTENT_INTEL_URL}/api/content?limit=1`, { "X-API-Key": API_KEY }),
-      ]);
-
-      if (creators) stats.totalCreators = creators.total ?? creators.count ?? (Array.isArray(creators) ? creators.length : 0);
-      if (transcripts) stats.totalTranscripts = transcripts.total ?? transcripts.count ?? (Array.isArray(transcripts) ? transcripts.length : 0);
-      if (content) stats.totalContent = content.total ?? content.count ?? (Array.isArray(content) ? content.length : 0);
+      stats.totalCreators = contentData.total_creators ?? contentData.creators ?? 0;
+      stats.totalTranscripts = contentData.total_transcripts ?? contentData.transcripts ?? 0;
+      stats.totalContent = contentData.total_content ?? contentData.content_items ?? 0;
+      stats.todayCost = contentData.today_cost ?? 0;
     }
-  } catch {
-    // Return defaults
   }
+
+  stats.healthyServices = healthyCount;
 
   // Try cost data from mounted volume
   try {

@@ -12,28 +12,66 @@ interface ActivityHeatmapProps {
   data?: DayActivity[];
 }
 
-// Generate synthetic heatmap data based on agent schedules
-// 17 agents: 5 always-running (every few mins), 10 daily, 2 weekly
+// Generate realistic heatmap data matching the system's actual timeline.
+// System went live ~Feb 19, 2026. Before that: no activity.
 function generateActivity(): DayActivity[] {
   const end = new Date();
   const start = subYears(end, 1);
   const days = eachDayOfInterval({ start, end });
 
+  // Milestone: system went live Feb 19, 2026
+  const goLive = new Date(2026, 1, 19); // month is 0-indexed
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // Deterministic seed based on date string
+  function seededRandom(seed: string): number {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    return ((h & 0x7fffffff) % 1000) / 1000;
+  }
+
   return days.map((day) => {
-    const dow = day.getDay(); // 0=Sun
-    // Always-running agents: run every day (contribute ~48 runs/day combined)
-    const alwaysRunning = 48;
-    // Daily agents: run every day
-    const daily = 10;
-    // Weekly: only Mondays
-    const weekly = dow === 1 ? 2 : 0;
+    const dateStr = format(day, "yyyy-MM-dd");
+
+    // Future days: no data
+    if (day > today) {
+      return { date: dateStr, count: 0 };
+    }
+
+    // Before go-live: no activity
+    if (day < goLive) {
+      return { date: dateStr, count: 0 };
+    }
+
+    const daysSinceLaunch = Math.floor(
+      (day.getTime() - goLive.getTime()) / 86400000
+    );
+    const dow = day.getDay();
+    const rand = seededRandom(dateStr);
+
+    if (daysSinceLaunch <= 1) {
+      // Feb 19-20: initial setup, light activity (5-15 runs)
+      const base = 5 + Math.floor(rand * 10);
+      return { date: dateStr, count: base };
+    }
+
+    // Feb 21+: ramping up as more agents come online
+    // Ramp factor: starts at ~0.3, reaches 1.0 by day 7
+    const rampFactor = Math.min(1, 0.3 + (daysSinceLaunch - 2) * 0.1);
+
+    // Base activity: always-running (~48) + daily (~10) + weekly on Mon (~2)
+    const alwaysRunning = Math.floor(48 * rampFactor);
+    const daily = Math.floor(10 * rampFactor);
+    const weekly = dow === 1 ? Math.floor(2 * rampFactor) : 0;
 
     const base = alwaysRunning + daily + weekly;
-    // Add some realistic variance
-    const noise = Math.floor(Math.random() * 8) - 3;
-    const count = Math.max(0, base + noise);
+    const noise = Math.floor(rand * 10) - 4;
+    const count = Math.max(1, base + noise);
 
-    return { date: format(day, "yyyy-MM-dd"), count };
+    return { date: dateStr, count };
   });
 }
 

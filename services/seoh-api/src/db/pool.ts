@@ -22,4 +22,16 @@ export async function initDb(): Promise<void> {
     );
   `);
   console.log('[db] seoh_audits table ready');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS seoh_comparisons (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      urls JSONB NOT NULL,
+      overall_winner JSONB,
+      dimension_winners JSONB,
+      site_scores JSONB,
+      compared_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  console.log('[db] seoh_comparisons table ready');
 }

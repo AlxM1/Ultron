@@ -37,7 +37,49 @@ interface PortalCalendarProps {
   onJobClick?: (job: AgentJob) => void;
 }
 
-// ─── Schedule Category Colors ────────────────────────────────────────────────
+// ─── Per-Agent Color Palette ─────────────────────────────────────────────────
+
+interface AgentColorStyle {
+  bg: string;
+  border: string;
+  text: string;
+  dot: string;
+}
+
+const AGENT_COLORS: AgentColorStyle[] = [
+  { bg: "bg-blue-100 dark:bg-blue-500/15", border: "border-blue-200 dark:border-blue-500/30", text: "text-blue-600 dark:text-blue-400", dot: "#3B82F6" },
+  { bg: "bg-emerald-100 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", text: "text-emerald-600 dark:text-emerald-400", dot: "#10B981" },
+  { bg: "bg-violet-100 dark:bg-violet-500/15", border: "border-violet-200 dark:border-violet-500/30", text: "text-violet-600 dark:text-violet-400", dot: "#8B5CF6" },
+  { bg: "bg-amber-100 dark:bg-amber-500/15", border: "border-amber-200 dark:border-amber-500/30", text: "text-amber-600 dark:text-amber-400", dot: "#F59E0B" },
+  { bg: "bg-rose-100 dark:bg-rose-500/15", border: "border-rose-200 dark:border-rose-500/30", text: "text-rose-600 dark:text-rose-400", dot: "#F43F5E" },
+  { bg: "bg-cyan-100 dark:bg-cyan-500/15", border: "border-cyan-200 dark:border-cyan-500/30", text: "text-cyan-600 dark:text-cyan-400", dot: "#06B6D4" },
+  { bg: "bg-pink-100 dark:bg-pink-500/15", border: "border-pink-200 dark:border-pink-500/30", text: "text-pink-600 dark:text-pink-400", dot: "#EC4899" },
+  { bg: "bg-lime-100 dark:bg-lime-500/15", border: "border-lime-200 dark:border-lime-500/30", text: "text-lime-600 dark:text-lime-400", dot: "#84CC16" },
+  { bg: "bg-orange-100 dark:bg-orange-500/15", border: "border-orange-200 dark:border-orange-500/30", text: "text-orange-600 dark:text-orange-400", dot: "#F97316" },
+  { bg: "bg-teal-100 dark:bg-teal-500/15", border: "border-teal-200 dark:border-teal-500/30", text: "text-teal-600 dark:text-teal-400", dot: "#14B8A6" },
+  { bg: "bg-indigo-100 dark:bg-indigo-500/15", border: "border-indigo-200 dark:border-indigo-500/30", text: "text-indigo-600 dark:text-indigo-400", dot: "#6366F1" },
+  { bg: "bg-fuchsia-100 dark:bg-fuchsia-500/15", border: "border-fuchsia-200 dark:border-fuchsia-500/30", text: "text-fuchsia-600 dark:text-fuchsia-400", dot: "#D946EF" },
+  { bg: "bg-sky-100 dark:bg-sky-500/15", border: "border-sky-200 dark:border-sky-500/30", text: "text-sky-600 dark:text-sky-400", dot: "#0EA5E9" },
+  { bg: "bg-red-100 dark:bg-red-500/15", border: "border-red-200 dark:border-red-500/30", text: "text-red-600 dark:text-red-400", dot: "#EF4444" },
+  { bg: "bg-yellow-100 dark:bg-yellow-500/15", border: "border-yellow-200 dark:border-yellow-500/30", text: "text-yellow-600 dark:text-yellow-400", dot: "#EAB308" },
+  { bg: "bg-green-100 dark:bg-green-500/15", border: "border-green-200 dark:border-green-500/30", text: "text-green-600 dark:text-green-400", dot: "#22C55E" },
+];
+
+// ─── Hash helper for deterministic color assignment ──────────────────────────
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function getAgentColor(name: string): AgentColorStyle {
+  return AGENT_COLORS[hashStr(name) % AGENT_COLORS.length];
+}
+
+// ─── Schedule Category (kept for filtering) ──────────────────────────────────
 
 type ScheduleCategory = "always-running" | "daily" | "weekly" | "manual";
 
@@ -47,59 +89,12 @@ function getScheduleCategory(agent: AgentJob): ScheduleCategory {
   return "manual";
 }
 
-interface CategoryStyle {
-  label: string;
-  dot: string;
-  dotDark: string;
-  pillBg: string;
-  pillBorder: string;
-  pillText: string;
-}
-
-const COLOR_CATEGORIES: Record<ScheduleCategory, CategoryStyle> = {
-  "always-running": {
-    label: "Always Running",
-    dot: "#3B82F6",
-    dotDark: "#60A5FA",
-    pillBg: "bg-blue-500/15",
-    pillBorder: "border-blue-500/30",
-    pillText: "text-blue-400",
-  },
-  daily: {
-    label: "Daily",
-    dot: "#10B981",
-    dotDark: "#34D399",
-    pillBg: "bg-emerald-500/15",
-    pillBorder: "border-emerald-500/30",
-    pillText: "text-emerald-400",
-  },
-  weekly: {
-    label: "Weekly",
-    dot: "#8B5CF6",
-    dotDark: "#A78BFA",
-    pillBg: "bg-violet-500/15",
-    pillBorder: "border-violet-500/30",
-    pillText: "text-violet-400",
-  },
-  manual: {
-    label: "Manual",
-    dot: "#71717A",
-    dotDark: "#A1A1AA",
-    pillBg: "bg-zinc-500/15",
-    pillBorder: "border-zinc-500/30",
-    pillText: "text-zinc-400",
-  },
+const CATEGORY_LABELS: Record<ScheduleCategory, string> = {
+  "always-running": "Always Running",
+  daily: "Daily",
+  weekly: "Weekly",
+  manual: "Manual",
 };
-
-// ─── Hash helper for deterministic scatter ───────────────────────────────────
-
-function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
 
 // ─── Cron Helpers ────────────────────────────────────────────────────────────
 
@@ -114,13 +109,12 @@ function agentRunsOnDay(agent: AgentJob, date: Date): boolean {
   return true;
 }
 
-/** Returns the primary run hour (0–23) for vertical positioning, or -1 for all-day */
 function getRunHour(agent: AgentJob): number {
   const parts = agent.schedule.split(" ");
   if (parts.length < 5) return -1;
   const hourPart = parts[1];
-  if (hourPart === "*") return -1; // runs every hour
-  if (hourPart.startsWith("*/")) return -1; // runs every N hours
+  if (hourPart === "*") return -1;
+  if (hourPart.startsWith("*/")) return -1;
   return parseInt(hourPart.split(",")[0]);
 }
 
@@ -171,36 +165,6 @@ function useIsDark(): boolean {
   return isDark;
 }
 
-// ─── Dot Component ───────────────────────────────────────────────────────────
-
-interface DotProps {
-  agent: AgentJob;
-  isDark: boolean;
-  onHover: (e: React.MouseEvent, agent: AgentJob) => void;
-  onLeave: () => void;
-  onClick: (e: React.MouseEvent, agent: AgentJob) => void;
-}
-
-function AgentDot({ agent, isDark, onHover, onLeave, onClick }: DotProps) {
-  const cat = getScheduleCategory(agent);
-  const style = COLOR_CATEGORIES[cat];
-  const color = isDark ? style.dotDark : style.dot;
-
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(e, agent); }}
-      onMouseEnter={(e) => onHover(e, agent)}
-      onMouseLeave={onLeave}
-      className="w-[7px] h-[7px] rounded-full flex-shrink-0 transition-transform duration-150 hover:scale-150 focus:outline-none cursor-pointer"
-      style={{
-        backgroundColor: color,
-        boxShadow: isDark ? `0 0 6px ${color}4D` : `0 0 4px ${color}33`,
-      }}
-      aria-label={agent.name}
-    />
-  );
-}
-
 // ─── Custom Tooltip ──────────────────────────────────────────────────────────
 
 interface TooltipData {
@@ -210,9 +174,9 @@ interface TooltipData {
 }
 
 function AgentTooltip({ data }: { data: TooltipData }) {
-  const cat = getScheduleCategory(data.agent);
-  const style = COLOR_CATEGORIES[cat];
+  const color = getAgentColor(data.agent.name);
   const schedule = getScheduleLabel(data.agent);
+  const catLabel = CATEGORY_LABELS[getScheduleCategory(data.agent)];
 
   return (
     <div
@@ -223,15 +187,15 @@ function AgentTooltip({ data }: { data: TooltipData }) {
         <div className="flex items-center gap-2 mb-1.5">
           <div
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: style.dot }}
+            style={{ backgroundColor: color.dot }}
           />
           <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
             {data.agent.name}
           </span>
         </div>
         <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">{schedule}</div>
-        <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${style.pillBg} ${style.pillText}`}>
-          {style.label}
+        <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${color.bg} ${color.text}`}>
+          {catLabel}
         </div>
       </div>
       <div className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 rotate-45 bg-white dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-700" />
@@ -249,12 +213,11 @@ interface BubbleData {
 
 function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const cat = getScheduleCategory(data.agent);
-  const style = COLOR_CATEGORIES[cat];
+  const color = getAgentColor(data.agent.name);
   const schedule = getScheduleLabel(data.agent);
+  const catLabel = CATEGORY_LABELS[getScheduleCategory(data.agent)];
   const wikiUrl = `https://inotion.00raiser.space/search/${encodeURIComponent(data.agent.name)}`;
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -270,7 +233,6 @@ function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }
     };
   }, [onClose]);
 
-  // Clamp position to viewport
   const left = Math.min(Math.max(data.x, 160), typeof window !== "undefined" ? window.innerWidth - 160 : 800);
   const top = Math.min(Math.max(data.y, 20), typeof window !== "undefined" ? window.innerHeight - 280 : 500);
 
@@ -286,7 +248,7 @@ function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }
           <div className="flex items-center gap-2.5">
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: style.dot }}
+              style={{ backgroundColor: color.dot }}
             />
             <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{data.agent.name}</h3>
           </div>
@@ -304,9 +266,9 @@ function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }
         </div>
 
         {/* Category badge */}
-        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium ${style.pillBg} ${style.pillText} mb-3`}>
-          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.dot }} />
-          {style.label}
+        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium ${color.bg} ${color.text} mb-3`}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color.dot }} />
+          {catLabel}
         </div>
 
         {/* Status + Last run */}
@@ -341,7 +303,7 @@ function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }
           href={wikiUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`inline-flex items-center gap-1 text-xs font-medium hover:underline transition-colors ${style.pillText}`}
+          className={`inline-flex items-center gap-1 text-xs font-medium hover:underline transition-colors ${color.text}`}
         >
           View details in Wiki
           <ExternalLink size={10} />
@@ -385,25 +347,6 @@ function MonthView({
 
   const DOW_HEADERS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-  // Helper: format run time for display
-  function getTimeLabel(agent: AgentJob): string {
-    const hour = getRunHour(agent);
-    if (hour === -1) return "";
-    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const min = agent.schedule.split(" ")[0];
-    const m = min.startsWith("*/") ? "00" : (parseInt(min) || 0).toString().padStart(2, "0");
-    return `${h12}:${m} ${ampm}`;
-  }
-
-  // Helper: is recurring (daily or always-running)
-  function isRecurring(agent: AgentJob): boolean {
-    return agent.category === "always-running" || agent.category === "daily";
-  }
-
-  // Max visible rows per cell in month view
-  const MAX_VISIBLE = 6;
-
   return (
     <>
       {bubble && <ZoomBubble data={bubble} onClose={closeBubble} />}
@@ -427,11 +370,9 @@ function MonthView({
           const dayAgents = filteredAgents.filter((a) => agentRunsOnDay(a, day));
           const isCurrentDay = isToday(day);
 
-          // Separate always-running from scheduled agents
           const alwaysRunning = dayAgents.filter((a) => a.category === "always-running");
           const scheduled = dayAgents.filter((a) => a.category !== "always-running");
 
-          // Sort scheduled by hour ascending
           const sorted = [...scheduled].sort((a, b) => {
             const ha = getRunHour(a);
             const hb = getRunHour(b);
@@ -440,9 +381,6 @@ function MonthView({
             if (hb === -1) return -1;
             return ha - hb;
           });
-
-          const visible = sorted.slice(0, MAX_VISIBLE);
-          const overflow = sorted.length - MAX_VISIBLE;
 
           return (
             <div
@@ -455,7 +393,7 @@ function MonthView({
                   : "bg-white dark:bg-zinc-950"
               }`}
             >
-              {/* Day header with number + event count */}
+              {/* Day header */}
               <div className="flex items-baseline justify-between mb-2">
                 <span className={`text-sm font-semibold leading-none select-none ${
                   isCurrentDay
@@ -517,13 +455,12 @@ function MonthView({
                               </div>
                               <div className="flex flex-wrap gap-0.5">
                                 {group.map((agent) => {
-                                  const cat = getScheduleCategory(agent);
-                                  const catStyle = COLOR_CATEGORIES[cat];
+                                  const agentColor = getAgentColor(agent.name);
                                   return (
                                     <button
                                       key={agent.id}
                                       onClick={(e) => handleAgentClick(e, agent)}
-                                      className={`inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-medium border cursor-pointer transition-all hover:brightness-90 dark:hover:brightness-125 truncate max-w-full ${catStyle.pillBg} ${catStyle.pillBorder} ${catStyle.pillText}`}
+                                      className={`inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-medium border cursor-pointer transition-all hover:brightness-90 dark:hover:brightness-125 truncate max-w-full ${agentColor.bg} ${agentColor.border} ${agentColor.text}`}
                                     >
                                       <span className="truncate">{agent.name}</span>
                                     </button>
@@ -626,16 +563,13 @@ function WeekView({
               {/* Agent cards — consolidated by time slot */}
               <div className="space-y-1.5">
                 {(() => {
-                  // Group agents by hour
                   const hourGroups = new Map<number, AgentJob[]>();
                   dayAgents.forEach((agent) => {
                     const hour = getRunHour(agent);
-                    const key = hour; // -1 = all-day/continuous
-                    if (!hourGroups.has(key)) hourGroups.set(key, []);
-                    hourGroups.get(key)!.push(agent);
+                    if (!hourGroups.has(hour)) hourGroups.set(hour, []);
+                    hourGroups.get(hour)!.push(agent);
                   });
 
-                  // Sort by hour ascending, -1 (all-day) last
                   const sortedKeys = [...hourGroups.keys()].sort((a, b) => {
                     if (a === -1) return 1;
                     if (b === -1) return -1;
@@ -644,7 +578,6 @@ function WeekView({
 
                   return sortedKeys.map((hour) => {
                     const group = hourGroups.get(hour)!;
-                    // Format time label
                     let timeLabel = "Always";
                     if (hour >= 0) {
                       const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
@@ -662,8 +595,7 @@ function WeekView({
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {group.map((agent) => {
-                            const cat = getScheduleCategory(agent);
-                            const catStyle = COLOR_CATEGORIES[cat];
+                            const agentColor = getAgentColor(agent.name);
                             return (
                               <button
                                 key={agent.id}
@@ -671,7 +603,7 @@ function WeekView({
                                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                   setBubble({ agent, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
                                 }}
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all duration-150 hover:brightness-90 dark:hover:brightness-125 ${catStyle.pillBg} ${catStyle.pillBorder} ${catStyle.pillText}`}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all duration-150 hover:brightness-90 dark:hover:brightness-125 ${agentColor.bg} ${agentColor.border} ${agentColor.text}`}
                               >
                                 {agent.name}
                               </button>
@@ -704,45 +636,64 @@ function LegendPanel({
 }) {
   const isDark = useIsDark();
 
+  // Group agents by category, then show each agent with its unique color
+  const categorized = useMemo(() => {
+    const cats: ScheduleCategory[] = ["always-running", "daily", "weekly", "manual"];
+    return cats
+      .map((cat) => ({
+        cat,
+        label: CATEGORY_LABELS[cat],
+        agents: agents
+          .filter((a) => getScheduleCategory(a) === cat)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .filter((g) => g.agents.length > 0);
+  }, [agents]);
+
   return (
     <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sticky top-24">
       <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">
-        Agent Categories
+        Agents
       </h3>
-      <div className="space-y-2.5">
-        {(Object.entries(COLOR_CATEGORIES) as [ScheduleCategory, CategoryStyle][]).map(
-          ([key, style]) => {
-            const count = agents.filter((a) => getScheduleCategory(a) === key).length;
-            if (count === 0) return null;
-            const isActive = activeFilter === key;
-            const color = isDark ? style.dotDark : style.dot;
-
-            return (
+      <div className="space-y-4">
+        {categorized.map(({ cat, label, agents: catAgents }) => {
+          const isActive = activeFilter === cat;
+          return (
+            <div key={cat}>
               <button
-                key={key}
-                onClick={() => onFilterToggle(key)}
-                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-all duration-150 ${
+                onClick={() => onFilterToggle(cat)}
+                className={`w-full flex items-center justify-between px-1.5 py-1 rounded-md text-left transition-all duration-150 mb-1.5 ${
                   isActive
                     ? "bg-zinc-200 dark:bg-zinc-800 ring-1 ring-zinc-300 dark:ring-zinc-700"
                     : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
                 }`}
               >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                    {style.label}
-                  </div>
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {label}
+                </span>
                 <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
-                  {count}
+                  {catAgents.length}
                 </span>
               </button>
-            );
-          }
-        )}
+              <div className="space-y-0.5 pl-1">
+                {catAgents.map((agent) => {
+                  const color = getAgentColor(agent.name);
+                  return (
+                    <div key={agent.id} className="flex items-center gap-2 py-0.5">
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color.dot }}
+                      />
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate">
+                        {agent.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {activeFilter && (
@@ -815,7 +766,6 @@ export default function PortalCalendar({
       {/* Calendar header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-4">
-          {/* Navigation arrows */}
           <div className="flex items-center gap-1">
             <button
               onClick={prev}
@@ -831,7 +781,6 @@ export default function PortalCalendar({
             </button>
           </div>
 
-          {/* Period label */}
           <h2 className="text-lg font-bold tracking-wide text-zinc-800 dark:text-zinc-100 uppercase">
             {periodLabel}
           </h2>
@@ -844,7 +793,6 @@ export default function PortalCalendar({
           </button>
         </div>
 
-        {/* View toggle */}
         <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
           <button
             onClick={() => setView("monthly")}
@@ -871,7 +819,6 @@ export default function PortalCalendar({
 
       {/* Calendar + Legend layout */}
       <div className="flex gap-5">
-        {/* Calendar grid */}
         <div className="flex-1 min-w-0">
           {view === "weekly" ? (
             <WeekView
@@ -888,7 +835,6 @@ export default function PortalCalendar({
           )}
         </div>
 
-        {/* Legend panel — right side, sticky */}
         <div className="hidden lg:block w-48 flex-shrink-0">
           <LegendPanel
             agents={agents}

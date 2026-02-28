@@ -279,12 +279,12 @@ export default function BoardPage() {
   const totalTranscripts = members.reduce((s, m) => s + m.transcripts, 0);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <div className="max-w-6xl mx-auto py-6 sm:py-10">
         {/* ── Hero ──────────────────────────────────────── */}
         <section className="mb-12 text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3">Board of Directors</h1>
-          <p className="text-zinc-400 text-lg">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 text-zinc-900 dark:text-zinc-100">Board of Directors</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 text-lg">
             {membersLoading ? "Loading..." : `${members.length} personas. ${totalTranscripts.toLocaleString()} transcripts. Real perspectives.`}
           </p>
           <div className="mt-5 mx-auto w-48 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
@@ -292,7 +292,7 @@ export default function BoardPage() {
 
         {membersLoading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="animate-spin text-amber-400" size={32} />
+            <Loader2 className="animate-spin text-amber-600 dark:text-amber-400" size={32} />
           </div>
         ) : (
           <>
@@ -305,20 +305,20 @@ export default function BoardPage() {
 
         {/* ── Individual Member Response ────────────────── */}
         {memberResponse && (
-          <div className="max-w-3xl mx-auto mb-8 bg-zinc-900 border border-amber-500/20 rounded-xl p-5">
+          <div className="max-w-3xl mx-auto mb-8 bg-white dark:bg-zinc-900 border border-amber-500/20 shadow-sm dark:shadow-none rounded-xl p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-600 to-amber-400 flex items-center justify-center text-xs font-bold text-zinc-950">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-600 to-amber-400 flex items-center justify-center text-xs font-bold text-white dark:text-zinc-950">
                 {initials(memberResponse.name)}
               </div>
-              <h4 className="font-semibold text-amber-400">{memberResponse.name}</h4>
+              <h4 className="font-semibold text-amber-600 dark:text-amber-400">{memberResponse.name}</h4>
               {audio.playing === memberResponse.name && (
-                <div className="flex items-center gap-1 text-amber-400">
+                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                   <Volume2 size={14} className="animate-pulse" />
                   <span className="text-xs">Speaking...</span>
                 </div>
               )}
             </div>
-            <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{memberResponse.text}</p>
+            <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{memberResponse.text}</p>
           </div>
         )}
 
@@ -326,7 +326,7 @@ export default function BoardPage() {
         <section className="mt-16 mb-12">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center justify-center gap-3 mb-2">
-              <h2 className="text-2xl font-semibold">Ask the Board</h2>
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Ask the Board</h2>
               <button
                 onClick={handleRoundtableMic}
                 disabled={loading || boardVoice.transcribing}
@@ -334,15 +334,15 @@ export default function BoardPage() {
                   boardVoice.recording
                     ? "bg-rose-500 text-white animate-pulse hover:bg-rose-400"
                     : boardVoice.transcribing
-                    ? "bg-zinc-700 text-zinc-400 cursor-wait"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-amber-500/20 hover:text-amber-400"
+                    ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 cursor-wait"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400"
                 }`}
                 title={boardVoice.recording ? "Stop recording" : "Ask with voice"}
               >
                 {boardVoice.recording ? <Square size={16} /> : boardVoice.transcribing ? <Loader2 size={16} className="animate-spin" /> : <Mic size={16} />}
               </button>
             </div>
-            <p className="text-zinc-500 text-center mb-6">
+            <p className="text-zinc-400 dark:text-zinc-500 text-center mb-6">
               {boardVoice.recording ? "Listening... click to stop" : boardVoice.transcribing ? "Transcribing..." : "Ask a strategic question and get perspectives from every persona."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -352,32 +352,32 @@ export default function BoardPage() {
                 onKeyDown={(e) => e.key === "Enter" && askBoard()}
                 placeholder={online ? "Ask the Board a question..." : "Board offline"}
                 disabled={!online}
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 sm:px-5 py-3 sm:py-3.5 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_0_1px_rgba(245,158,11,0.3)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg px-4 sm:px-5 py-3 sm:py-3.5 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_0_1px_rgba(245,158,11,0.3)] transition disabled:opacity-40 disabled:cursor-not-allowed"
               />
               <button
                 onClick={() => askBoard()}
                 disabled={loading || !query.trim() || !online}
-                className="px-6 py-3 sm:py-3.5 bg-amber-500 text-zinc-950 rounded-lg font-semibold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 shrink-0"
+                className="px-6 py-3 sm:py-3.5 bg-amber-500 text-white dark:text-zinc-950 rounded-lg font-semibold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 shrink-0"
               >
                 {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                 Ask
               </button>
             </div>
             {loading && (
-              <p className="text-zinc-500 text-sm text-center mt-3 animate-pulse">Querying board members...</p>
+              <p className="text-zinc-400 dark:text-zinc-500 text-sm text-center mt-3 animate-pulse">Querying board members...</p>
             )}
           </div>
         </section>
 
         {/* ── Error ── */}
-        {result?.error && <p className="text-rose-400 text-center mb-6">{result.error}</p>}
+        {result?.error && <p className="text-red-700 dark:text-red-400 text-center mb-6">{result.error}</p>}
 
         {/* ── Perspectives ── */}
         {perspectives.length > 0 && (
           <div ref={responsesRef} className="max-w-3xl mx-auto mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Board Responses</h3>
-              <button onClick={playRoundtable} disabled={!!audio.playing} className="flex items-center gap-2 text-xs text-amber-400 hover:text-amber-300 disabled:opacity-40 transition">
+              <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Board Responses</h3>
+              <button onClick={playRoundtable} disabled={!!audio.playing} className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 disabled:opacity-40 transition">
                 <Volume2 size={14} /> Play All Voices
               </button>
             </div>
@@ -388,21 +388,21 @@ export default function BoardPage() {
                 const group = member?.group ?? "board";
                 const isSpeaking = audio.playing === name;
                 return (
-                  <div key={name} className={`bg-zinc-900 border rounded-xl p-5 flex gap-4 transition-all duration-500 ${isSpeaking ? "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.1)]" : "border-zinc-800"} ${i < visibleCards ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-sm font-bold text-zinc-950 shrink-0 ${isSpeaking ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-950" : ""}`}>
+                  <div key={name} className={`bg-white dark:bg-zinc-900 border rounded-xl p-5 flex gap-4 shadow-sm dark:shadow-none transition-all duration-500 ${isSpeaking ? "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.1)]" : "border-zinc-200 dark:border-zinc-800"} ${i < visibleCards ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-sm font-bold text-white dark:text-zinc-950 shrink-0 ${isSpeaking ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950" : ""}`}>
                       {initials(name)}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-amber-400">{name}</h4>
-                        {isSpeaking && <Volume2 size={14} className="text-amber-400 animate-pulse" />}
+                        <h4 className="font-semibold text-amber-600 dark:text-amber-400">{name}</h4>
+                        {isSpeaking && <Volume2 size={14} className="text-amber-600 dark:text-amber-400 animate-pulse" />}
                         {member?.voice && !isSpeaking && (
-                          <button onClick={() => audio.playAudio(name, p.response)} className="text-zinc-600 hover:text-amber-400 transition" title="Play voice">
+                          <button onClick={() => audio.playAudio(name, p.response)} className="text-zinc-300 dark:text-zinc-600 hover:text-amber-600 dark:hover:text-amber-400 transition" title="Play voice">
                             <Volume2 size={14} />
                           </button>
                         )}
                       </div>
-                      <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{p.response}</p>
+                      <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{p.response}</p>
                     </div>
                   </div>
                 );
@@ -413,27 +413,27 @@ export default function BoardPage() {
 
         {/* ── Consensus ── */}
         {result?.consensus && (
-          <div className="max-w-3xl mx-auto bg-amber-500/5 border border-amber-500/20 rounded-xl p-6 mb-8">
-            <h3 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-2">Consensus</h3>
-            <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{result.consensus}</p>
+          <div className="max-w-3xl mx-auto bg-amber-50 dark:bg-amber-500/5 border border-amber-500/20 rounded-xl p-6 mb-8">
+            <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">Consensus</h3>
+            <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{result.consensus}</p>
           </div>
         )}
 
         {/* ── Example Questions ── */}
         {!loading && !result && (
           <section className="max-w-3xl mx-auto mt-8">
-            <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4 text-center">
+            <h3 className="text-sm font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-4 text-center">
               {history.length > 0 ? "Recent Questions" : "Example Questions"}
             </h3>
             <div className="grid gap-3">
               {history.length > 0
                 ? history.slice(0, 3).map((h, i) => (
-                    <button key={i} onClick={() => setQuery(h.question)} className="text-left bg-zinc-900 border border-zinc-800 rounded-lg px-5 py-3 text-zinc-300 hover:border-amber-500/30 hover:text-zinc-100 transition">
+                    <button key={i} onClick={() => setQuery(h.question)} className="text-left bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none rounded-lg px-5 py-3 text-zinc-600 dark:text-zinc-300 hover:border-amber-500/30 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
                       {h.question}
                     </button>
                   ))
                 : EXAMPLE_QUESTIONS.map((q, i) => (
-                    <button key={i} onClick={() => setQuery(q)} className="text-left bg-zinc-900 border border-zinc-800 rounded-lg px-5 py-3 text-zinc-300 hover:border-amber-500/30 hover:text-zinc-100 transition">
+                    <button key={i} onClick={() => setQuery(q)} className="text-left bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none rounded-lg px-5 py-3 text-zinc-600 dark:text-zinc-300 hover:border-amber-500/30 hover:text-zinc-900 dark:hover:text-zinc-100 transition">
                       {q}
                     </button>
                   ))}
@@ -462,8 +462,8 @@ function MemberSection({ title, members, count, onMemberMic, activeMember, membe
   return (
     <section className="mb-10">
       <div className="flex items-center gap-3 mb-5">
-        <h2 className="text-lg font-semibold text-zinc-300">{title}</h2>
-        <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">{count}</span>
+        <h2 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">{title}</h2>
+        <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded-full">{count}</span>
       </div>
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {members.map((m) => (
@@ -491,30 +491,30 @@ function MemberCard({ member, onMic, isRecording, isTranscribing, isLoading, isS
 
   return (
     <div
-      className={`group relative bg-zinc-900 border rounded-xl p-4 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.08)] hover:-translate-y-0.5 transition-all duration-200 ${isSpeaking ? "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.12)]" : "border-zinc-800"}`}
+      className={`group relative bg-white dark:bg-zinc-900 border rounded-xl p-4 shadow-sm dark:shadow-none hover:border-amber-500/30 hover:shadow-md dark:hover:shadow-[0_0_20px_rgba(245,158,11,0.08)] hover:-translate-y-0.5 transition-all duration-200 ${isSpeaking ? "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.12)]" : "border-zinc-200 dark:border-zinc-800"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => setHovered(!hovered)}
     >
       <div className="flex items-start gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-sm font-bold text-zinc-950 shrink-0 ${isSpeaking ? "ring-2 ring-amber-400" : ""}`}>
+        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-sm font-bold text-white dark:text-zinc-950 shrink-0 ${isSpeaking ? "ring-2 ring-amber-400" : ""}`}>
           {initials(name)}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-zinc-100 truncate text-sm">{name}</h3>
-            <span className={`w-2 h-2 rounded-full shrink-0 ${voice ? "bg-emerald-400" : "bg-zinc-600"}`} />
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-sm">{name}</h3>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${voice ? "bg-emerald-400" : "bg-zinc-300 dark:bg-zinc-600"}`} />
           </div>
-          <p className="text-xs text-zinc-500 truncate">{role}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate">{role}</p>
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-600">{transcripts.toLocaleString()} transcripts</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-600">{transcripts.toLocaleString()} transcripts</span>
         {voice && (
           <button
             onClick={(e) => { e.stopPropagation(); onMic(); }}
             disabled={isLoading}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-rose-500 text-white animate-pulse" : isTranscribing || isLoading ? "bg-zinc-700 text-zinc-400" : "bg-zinc-800 text-zinc-500 hover:bg-amber-500/20 hover:text-amber-400"}`}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-rose-500 text-white animate-pulse" : isTranscribing || isLoading ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400"}`}
             title={isRecording ? "Stop" : `Talk to ${name}`}
           >
             {isRecording ? <Square size={10} /> : isTranscribing || isLoading ? <Loader2 size={12} className="animate-spin" /> : <Mic size={12} />}
@@ -524,50 +524,50 @@ function MemberCard({ member, onMic, isRecording, isTranscribing, isLoading, isS
 
       {/* Hover Popup */}
       {hovered && (
-        <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 sm:w-72 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl shadow-black/50">
+        <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 sm:w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 shadow-xl dark:shadow-2xl dark:shadow-black/50">
           <div className="flex items-center gap-2 mb-2">
-            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-xs font-bold text-zinc-950`}>
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradient(group)} flex items-center justify-center text-xs font-bold text-white dark:text-zinc-950`}>
               {initials(name)}
             </div>
             <div>
-              <h4 className="font-semibold text-zinc-100 text-sm">{name}</h4>
-              <p className="text-xs text-zinc-500">{role}</p>
+              <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{name}</h4>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">{role}</p>
             </div>
-            <span className={`ml-auto w-2.5 h-2.5 rounded-full ${voice ? "bg-emerald-400" : "bg-zinc-600"}`} />
+            <span className={`ml-auto w-2.5 h-2.5 rounded-full ${voice ? "bg-emerald-400" : "bg-zinc-300 dark:bg-zinc-600"}`} />
           </div>
-          <div className="border-t border-zinc-800 pt-2 mt-1 space-y-2">
+          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-2 mt-1 space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">Transcripts</span>
-              <span className="text-zinc-300 font-medium">{transcripts.toLocaleString()}</span>
+              <span className="text-zinc-400 dark:text-zinc-500">Transcripts</span>
+              <span className="text-zinc-700 dark:text-zinc-300 font-medium">{transcripts.toLocaleString()}</span>
             </div>
             {style && (
               <div>
-                <span className="text-xs text-zinc-500">Style</span>
-                <p className="text-xs text-zinc-300 mt-0.5">{style}</p>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">Style</span>
+                <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-0.5">{style}</p>
               </div>
             )}
             {topics && topics.length > 0 && (
               <div>
-                <span className="text-xs text-zinc-500">Top Topics</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">Top Topics</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {topics.map((t) => (
-                    <span key={t} className="text-[10px] bg-amber-500/10 text-amber-400/80 px-1.5 py-0.5 rounded">{t}</span>
+                    <span key={t} className="text-[10px] bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 px-1.5 py-0.5 rounded">{t}</span>
                   ))}
                 </div>
               </div>
             )}
             {catchphrases && catchphrases.length > 0 && (
               <div>
-                <span className="text-xs text-zinc-500">Catchphrases</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">Catchphrases</span>
                 <div className="mt-0.5">
                   {catchphrases.map((c, i) => (
-                    <p key={i} className="text-[10px] text-zinc-400 italic">"{c}"</p>
+                    <p key={i} className="text-[10px] text-zinc-500 dark:text-zinc-400 italic">"{c}"</p>
                   ))}
                 </div>
               </div>
             )}
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-zinc-700" />
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-zinc-200 dark:border-t-zinc-700" />
         </div>
       )}
     </div>

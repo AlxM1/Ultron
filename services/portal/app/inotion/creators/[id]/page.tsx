@@ -65,7 +65,7 @@ export default function CreatorDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-sm text-zinc-400 animate-pulse">Loading creator...</div>
+        <div className="text-sm text-zinc-400 dark:text-zinc-600 animate-pulse">Loading creator...</div>
       </div>
     );
   }
@@ -73,8 +73,8 @@ export default function CreatorDetailPage() {
   if (!creator) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <p className="text-sm text-zinc-500">Creator not found: {id}</p>
-        <Link href="/inotion/creators" className="text-xs text-blue-500 hover:underline">Back to creators</Link>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Creator not found: {id}</p>
+        <Link href="/inotion/creators" className="text-xs text-amber-600 dark:text-amber-400 hover:underline">Back to creators</Link>
       </div>
     );
   }
@@ -86,15 +86,15 @@ export default function CreatorDetailPage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/inotion/creators" className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300">
+            <Link href="/inotion/creators" className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
               <ArrowLeft size={12} /> Creators
             </Link>
-            <span className="text-zinc-300 dark:text-zinc-700">/</span>
-            <span className="text-sm font-semibold">{creator.name}</span>
+            <span className="text-zinc-200 dark:text-zinc-700">/</span>
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{creator.name}</span>
           </div>
           <ThemeToggle />
         </div>
@@ -105,9 +105,9 @@ export default function CreatorDetailPage() {
         <div>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{creator.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{creator.name}</h1>
               <div className="mt-1 flex items-center gap-3">
-                {creator.handle && <span className="text-sm text-zinc-400">@{creator.handle}</span>}
+                {creator.handle && <span className="text-sm text-zinc-400 dark:text-zinc-600">@{creator.handle}</span>}
                 <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium capitalize bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                   {creator.platform}
                 </span>
@@ -120,7 +120,7 @@ export default function CreatorDetailPage() {
             </div>
             {creator.url && (
               <a href={creator.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
                 <ExternalLink size={12} /> View channel
               </a>
             )}
@@ -132,11 +132,11 @@ export default function CreatorDetailPage() {
           <StatBox icon={Users} label="Subscribers" value={fmtNum(creator.subscriber_count)} />
           <StatBox icon={Video} label="Content Items" value={fmtNum(creator.content_count)} />
           <StatBox icon={FileText} label="Transcripts" value={fmtNum(creator.transcript_count)} />
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Coverage</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Coverage</span>
             </div>
-            <div className={`text-2xl font-bold tracking-tight ${
+            <div className={`text-3xl font-bold tabular-nums tracking-tight ${
               coverage >= 80 ? "text-emerald-600 dark:text-emerald-400" :
               coverage >= 50 ? "text-amber-600 dark:text-amber-400" :
               "text-rose-600 dark:text-rose-400"
@@ -150,14 +150,14 @@ export default function CreatorDetailPage() {
         </div>
 
         {/* Metadata */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">Details</h2>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm dark:shadow-none">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Details</h2>
           <dl className="grid grid-cols-2 gap-4 text-sm">
-            {creator.niche && <><dt className="text-zinc-400">Niche</dt><dd className="text-zinc-800 dark:text-zinc-200">{creator.niche}</dd></>}
-            <dt className="text-zinc-400">Last Scraped</dt>
-            <dd className="text-zinc-800 dark:text-zinc-200">{fmtDate(creator.last_scraped_at)}</dd>
-            <dt className="text-zinc-400">Platform</dt>
-            <dd className="text-zinc-800 dark:text-zinc-200 capitalize">{creator.platform}</dd>
+            {creator.niche && <><dt className="text-zinc-400 dark:text-zinc-600">Niche</dt><dd className="text-zinc-900 dark:text-zinc-100">{creator.niche}</dd></>}
+            <dt className="text-zinc-400 dark:text-zinc-600">Last Scraped</dt>
+            <dd className="text-zinc-900 dark:text-zinc-100">{fmtDate(creator.last_scraped_at)}</dd>
+            <dt className="text-zinc-400 dark:text-zinc-600">Platform</dt>
+            <dd className="text-zinc-900 dark:text-zinc-100 capitalize">{creator.platform}</dd>
           </dl>
         </div>
       </main>
@@ -167,12 +167,12 @@ export default function CreatorDetailPage() {
 
 function StatBox({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{label}</span>
-        <Icon size={12} className="text-zinc-400" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+        <Icon size={12} className="text-zinc-400 dark:text-zinc-600" />
       </div>
-      <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{value}</div>
+      <div className="text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">{value}</div>
     </div>
   );
 }

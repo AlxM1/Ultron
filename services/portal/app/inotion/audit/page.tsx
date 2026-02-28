@@ -38,12 +38,11 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      style={{
-        display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 6,
-        border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)",
-        color: copied ? "#22c55e" : "rgba(255,255,255,0.5)", fontSize: 11, cursor: "pointer",
-        fontWeight: 500, transition: "all 0.2s",
-      }}
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-medium cursor-pointer transition-all
+        ${copied
+          ? "border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          : "border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 text-zinc-400 dark:text-white/50 hover:text-zinc-600 dark:hover:text-white/70"
+        }`}
     >
       {copied ? <Check size={12} /> : <Copy size={12} />}
       {copied ? "Copied" : "Copy"}
@@ -65,11 +64,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <span style={{
-      fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
-      padding: "3px 8px", borderRadius: 4,
-      background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b",
-    }}>
+    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-500">
       {category}
     </span>
   );
@@ -107,12 +102,9 @@ function FixesPanel({ report }: { report: AuditReport }) {
   }, [] as { priority: string; items: Fix[] }[]) : [];
 
   return (
-    <div style={{
-      background: "rgba(255,255,255,0.02)", border: "1px solid rgba(245,158,11,0.1)",
-      borderRadius: 16, padding: 24, marginBottom: 24,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: fixes ? 20 : 0 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "rgba(245,158,11,0.9)", display: "flex", alignItems: "center", gap: 8 }}>
+    <div className="bg-white dark:bg-white/[0.02] border border-amber-200 dark:border-amber-500/10 shadow-sm dark:shadow-none rounded-2xl p-6 mb-6">
+      <div className={`flex items-center justify-between ${fixes ? "mb-5" : ""}`}>
+        <h3 className="text-base font-semibold m-0 text-amber-600 dark:text-amber-500/90 flex items-center gap-2">
           <Wrench size={16} />
           Auto-Fix Suggestions
         </h3>
@@ -120,20 +112,16 @@ function FixesPanel({ report }: { report: AuditReport }) {
           <button
             onClick={loadFixes}
             disabled={loading}
-            style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", borderRadius: 8,
-              border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.1)",
-              color: "#f59e0b", fontWeight: 600, fontSize: 13, cursor: loading ? "wait" : "pointer",
-            }}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 font-semibold text-[13px] cursor-pointer disabled:cursor-wait"
           >
-            {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Wrench size={14} />}
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
             {loading ? "Generating fixes..." : "View Fixes"}
           </button>
         )}
       </div>
 
       {error && (
-        <div style={{ padding: 12, borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 13, marginTop: 12 }}>
+        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-[13px] mt-3">
           {error}
         </div>
       )}
@@ -141,7 +129,7 @@ function FixesPanel({ report }: { report: AuditReport }) {
       {fixes && (
         <>
           {/* Summary badges */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          <div className="flex gap-3 mb-5 flex-wrap">
             {PRIORITY_ORDER.map(p => {
               const count = fixes.summary[p];
               if (!count) return null;
@@ -159,7 +147,7 @@ function FixesPanel({ report }: { report: AuditReport }) {
 
           {/* Grouped fixes */}
           {grouped.map(group => (
-            <div key={group.priority} style={{ marginBottom: 20 }}>
+            <div key={group.priority} className="mb-5">
               <div style={{
                 fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
                 color: PRIORITY_COLORS[group.priority].text, marginBottom: 10,
@@ -168,52 +156,41 @@ function FixesPanel({ report }: { report: AuditReport }) {
               </div>
               {group.items.map((fix, i) => {
                 const idx = fixes.fixes.indexOf(fix);
-                const isExpanded = expanded[idx] !== false; // default expanded
+                const isExpanded = expanded[idx] !== false;
                 return (
-                  <div key={i} style={{
-                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: 10, marginBottom: 8, overflow: "hidden",
-                  }}>
+                  <div key={i} className="bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.06] rounded-xl mb-2 overflow-hidden">
                     <div
                       onClick={() => setExpanded(prev => ({ ...prev, [idx]: !isExpanded }))}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", cursor: "pointer",
-                        borderBottom: isExpanded ? "1px solid rgba(255,255,255,0.04)" : "none",
-                      }}
+                      className={`flex items-center gap-2 px-4 py-3 cursor-pointer ${isExpanded ? "border-b border-zinc-100 dark:border-white/[0.04]" : ""}`}
                     >
-                      {isExpanded ? <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.3)" }} /> : <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.3)" }} />}
+                      {isExpanded
+                        ? <ChevronDown size={14} className="text-zinc-400 dark:text-white/30" />
+                        : <ChevronRight size={14} className="text-zinc-400 dark:text-white/30" />
+                      }
                       <CategoryBadge category={fix.category} />
                       <PriorityBadge priority={fix.priority} />
-                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", flex: 1 }}>{fix.explanation}</span>
+                      <span className="text-[13px] text-zinc-600 dark:text-white/70 flex-1">{fix.explanation}</span>
                     </div>
                     {isExpanded && (
-                      <div style={{ padding: "12px 16px" }}>
+                      <div className="px-4 py-3">
                         {fix.currentValue && (
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                          <div className="mb-3">
+                            <div className="text-[10px] font-semibold text-zinc-400 dark:text-white/35 uppercase tracking-wide mb-1.5">
                               Current
                             </div>
-                            <pre style={{
-                              margin: 0, padding: 12, borderRadius: 8, background: "rgba(0,0,0,0.4)",
-                              border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)",
-                              fontSize: 12, fontFamily: "'SF Mono', Consolas, monospace", overflowX: "auto", whiteSpace: "pre-wrap",
-                            }}>
+                            <pre className="m-0 p-3 rounded-lg bg-zinc-100 dark:bg-black/40 border border-zinc-200 dark:border-white/[0.06] text-zinc-500 dark:text-white/50 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
                               {fix.currentValue}
                             </pre>
                           </div>
                         )}
                         <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="text-[10px] font-semibold text-zinc-400 dark:text-white/35 uppercase tracking-wide">
                               Fixed Code
                             </span>
                             <CopyButton text={fix.fixedCode} />
                           </div>
-                          <pre style={{
-                            margin: 0, padding: 12, borderRadius: 8, background: "rgba(0,0,0,0.4)",
-                            border: "1px solid rgba(34,197,94,0.15)", color: "rgba(255,255,255,0.8)",
-                            fontSize: 12, fontFamily: "'SF Mono', Consolas, monospace", overflowX: "auto", whiteSpace: "pre-wrap",
-                          }}>
+                          <pre className="m-0 p-3 rounded-lg bg-zinc-100 dark:bg-black/40 border border-emerald-200 dark:border-emerald-500/15 text-zinc-700 dark:text-white/80 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
                             {fix.fixedCode}
                           </pre>
                         </div>
@@ -246,7 +223,7 @@ function ScoreRing({ score, size = 160 }: { score: number; size?: number }) {
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-zinc-200 dark:stroke-white/[0.06]" strokeWidth={8} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={color} strokeWidth={8} strokeLinecap="round"
@@ -254,14 +231,11 @@ function ScoreRing({ score, size = 160 }: { score: number; size?: number }) {
           style={{ transition: "stroke-dashoffset 1s ease-out" }}
         />
       </svg>
-      <div style={{
-        position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-      }}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span style={{ fontSize: size * 0.35, fontWeight: 700, color, fontFamily: "'SF Mono', monospace" }}>
           {score}
         </span>
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <span className="text-[11px] text-zinc-400 dark:text-white/40 tracking-widest uppercase">
           GEO Score
         </span>
       </div>
@@ -272,14 +246,14 @@ function ScoreRing({ score, size = 160 }: { score: number; size?: number }) {
 function DimensionBar({ label, score }: { label: string; score: number }) {
   const color = scoreColor(score);
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>{label}</span>
+    <div className="mb-4">
+      <div className="flex justify-between mb-1.5">
+        <span className="text-[13px] text-zinc-600 dark:text-white/70 font-medium">{label}</span>
         <span style={{ fontSize: 13, color, fontFamily: "'SF Mono', monospace", fontWeight: 600 }}>{score}</span>
       </div>
-      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-white/[0.06] overflow-hidden">
         <div style={{
-          height: "100%", borderRadius: 3, background: color, width: `${score}%`,
+          height: "100%", borderRadius: 9999, background: color, width: `${score}%`,
           transition: "width 1s ease-out",
           boxShadow: `0 0 8px ${color}40`,
         }} />
@@ -318,86 +292,56 @@ export default function AuditPage() {
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0f1a 100%)",
-      color: "#fff",
-      padding: "40px 24px",
-    }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-[#0a0a0f] dark:via-[#0d1117] dark:to-[#0a0f1a] text-zinc-900 dark:text-white px-6 py-10">
+      <div className="max-w-[900px] mx-auto">
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-          <Link href="/inotion" style={{
-            color: "rgba(245,158,11,0.7)", textDecoration: "none", display: "flex", alignItems: "center",
-          }}>
+        <div className="flex items-center gap-3 mb-8">
+          <Link href="/inotion" className="text-amber-600 dark:text-amber-500/70 no-underline flex items-center">
             <ArrowLeft size={18} />
           </Link>
-          <h1 style={{
-            fontSize: 24, fontWeight: 700, margin: 0,
-            background: "linear-gradient(135deg, #f59e0b, #d97706)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>
+          <h1 className="text-2xl font-bold m-0 bg-gradient-to-br from-amber-500 to-amber-600 bg-clip-text text-transparent">
             SEO Audit
           </h1>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "'SF Mono', monospace" }}>
+          <span className="text-xs text-zinc-400 dark:text-white/30 font-mono">
             GEO Readiness Scanner
           </span>
         </div>
 
         {/* Input */}
-        <div style={{
-          display: "flex", gap: 12, marginBottom: 32,
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(245,158,11,0.15)",
-          borderRadius: 12, padding: 8,
-        }}>
+        <div className="flex gap-3 mb-8 bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-amber-500/15 shadow-sm dark:shadow-none rounded-xl p-2">
           <input
             type="text"
             value={url}
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === "Enter" && !loading && runAudit()}
             placeholder="Enter URL to audit (e.g. seoh.ca)"
-            style={{
-              flex: 1, background: "transparent", border: "none", outline: "none",
-              color: "#fff", fontSize: 15, padding: "10px 16px",
-              fontFamily: "'SF Mono', monospace",
-            }}
+            className="flex-1 bg-transparent border-none outline-none text-zinc-900 dark:text-white text-[15px] px-4 py-2.5 font-mono placeholder:text-zinc-400 dark:placeholder:text-white/30"
           />
           <button
             onClick={runAudit}
             disabled={loading || !url.trim()}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "10px 24px", borderRadius: 8, border: "none",
-              background: loading ? "rgba(245,158,11,0.2)" : "linear-gradient(135deg, #f59e0b, #d97706)",
-              color: loading ? "rgba(255,255,255,0.5)" : "#000",
-              fontWeight: 600, fontSize: 14, cursor: loading ? "wait" : "pointer",
-              transition: "all 0.2s",
-            }}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg border-none font-semibold text-sm transition-all
+              ${loading
+                ? "bg-amber-100 dark:bg-amber-500/20 text-zinc-400 dark:text-white/50 cursor-wait"
+                : "bg-gradient-to-br from-amber-500 to-amber-600 text-white dark:text-black cursor-pointer hover:from-amber-400 hover:to-amber-500"
+              }`}
           >
-            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Search size={16} />}
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {loading ? "Scanning..." : "Run Audit"}
           </button>
         </div>
 
         {/* Loading */}
         {loading && (
-          <div style={{
-            textAlign: "center", padding: 60,
-            color: "rgba(245,158,11,0.6)", fontSize: 14,
-          }}>
-            <Loader2 size={32} style={{ animation: "spin 1s linear infinite", marginBottom: 16 }} />
+          <div className="text-center py-16 text-amber-500 dark:text-amber-500/60 text-sm">
+            <Loader2 size={32} className="animate-spin mb-4 mx-auto" />
             <div>Deep crawling and scoring pages. This may take a minute.</div>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div style={{
-            padding: 16, borderRadius: 8,
-            background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
-            color: "#ef4444", fontSize: 14,
-          }}>
+          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-sm">
             {error}
           </div>
         )}
@@ -406,7 +350,7 @@ export default function AuditPage() {
         {report && (
           <div>
             {/* Download PDF Button */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+            <div className="flex justify-end mb-4">
               <button
                 onClick={async () => {
                   try {
@@ -426,33 +370,21 @@ export default function AuditPage() {
                     console.error("PDF download failed:", err);
                   }
                 }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "10px 20px", borderRadius: 8, border: "1px solid rgba(245,158,11,0.3)",
-                  background: "rgba(245,158,11,0.1)", color: "#f59e0b",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(245,158,11,0.2)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(245,158,11,0.1)"; }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 font-semibold text-[13px] cursor-pointer transition-all hover:bg-amber-100 dark:hover:bg-amber-500/20"
               >
                 <Download size={15} />
                 Download PDF Report
               </button>
             </div>
+
             {/* Fixes */}
             <FixesPanel report={report} />
 
             {/* Score + Dimensions */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "auto 1fr", gap: 48,
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(245,158,11,0.1)",
-              borderRadius: 16, padding: 32, marginBottom: 24,
-            }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div className="grid grid-cols-[auto_1fr] gap-12 bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-amber-500/10 shadow-sm dark:shadow-none rounded-2xl p-8 mb-6">
+              <div className="flex flex-col items-center gap-3">
                 <ScoreRing score={report.overall_score} />
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
+                <div className="text-xs text-zinc-400 dark:text-white/40 text-center">
                   {report.pages_crawled} page{report.pages_crawled !== 1 ? "s" : ""} analyzed
                 </div>
               </div>
@@ -465,26 +397,18 @@ export default function AuditPage() {
 
             {/* Issues */}
             {Object.entries(report.dimensions).some(([, d]) => d.issues.length > 0) && (
-              <div style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(245,158,11,0.1)",
-                borderRadius: 16, padding: 24, marginBottom: 24,
-              }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "rgba(245,158,11,0.9)" }}>
+              <div className="bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-amber-500/10 shadow-sm dark:shadow-none rounded-2xl p-6 mb-6">
+                <h3 className="text-base font-semibold mb-4 text-amber-600 dark:text-amber-500/90">
                   Issues Found
                 </h3>
                 {Object.entries(report.dimensions).map(([key, dim]) =>
                   dim.issues.length > 0 ? (
-                    <div key={key} style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    <div key={key} className="mb-4">
+                      <div className="text-xs font-semibold text-zinc-400 dark:text-white/50 mb-1.5 uppercase tracking-wide">
                         {DIMENSION_LABELS[key] || key}
                       </div>
                       {dim.issues.map((issue, i) => (
-                        <div key={i} style={{
-                          fontSize: 13, color: "rgba(255,255,255,0.6)", padding: "4px 0 4px 12px",
-                          borderLeft: "2px solid rgba(245,158,11,0.2)",
-                          marginBottom: 4,
-                        }}>
+                        <div key={i} className="text-[13px] text-zinc-600 dark:text-white/60 py-1 pl-3 border-l-2 border-amber-200 dark:border-amber-500/20 mb-1">
                           {issue}
                         </div>
                       ))}
@@ -496,20 +420,13 @@ export default function AuditPage() {
 
             {/* Recommendations */}
             {report.recommendations.length > 0 && (
-              <div style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(245,158,11,0.1)",
-                borderRadius: 16, padding: 24, marginBottom: 24,
-              }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "rgba(245,158,11,0.9)" }}>
+              <div className="bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-amber-500/10 shadow-sm dark:shadow-none rounded-2xl p-6 mb-6">
+                <h3 className="text-base font-semibold mb-4 text-amber-600 dark:text-amber-500/90">
                   Recommendations
                 </h3>
                 {report.recommendations.map((rec, i) => (
-                  <div key={i} style={{
-                    display: "flex", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.6)",
-                    padding: "8px 0", borderBottom: i < report.recommendations.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                  }}>
-                    <span style={{ color: "rgba(245,158,11,0.6)", fontFamily: "'SF Mono', monospace", fontSize: 11, flexShrink: 0 }}>
+                  <div key={i} className={`flex gap-2.5 text-[13px] text-zinc-600 dark:text-white/60 py-2 ${i < report.recommendations.length - 1 ? "border-b border-zinc-100 dark:border-white/[0.04]" : ""}`}>
+                    <span className="text-amber-500 dark:text-amber-500/60 font-mono text-[11px] shrink-0">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     {rec}
@@ -520,25 +437,13 @@ export default function AuditPage() {
 
             {/* Page Scores */}
             {report.page_scores.length > 1 && (
-              <div style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(245,158,11,0.1)",
-                borderRadius: 16, padding: 24,
-              }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "rgba(245,158,11,0.9)" }}>
+              <div className="bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-amber-500/10 shadow-sm dark:shadow-none rounded-2xl p-6">
+                <h3 className="text-base font-semibold mb-4 text-amber-600 dark:text-amber-500/90">
                   Page Breakdown
                 </h3>
                 {report.page_scores.map((p, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "8px 0",
-                    borderBottom: i < report.page_scores.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                  }}>
-                    <span style={{
-                      fontSize: 13, color: "rgba(255,255,255,0.6)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%",
-                      fontFamily: "'SF Mono', monospace",
-                    }}>
+                  <div key={i} className={`flex justify-between items-center py-2 ${i < report.page_scores.length - 1 ? "border-b border-zinc-100 dark:border-white/[0.04]" : ""}`}>
+                    <span className="text-[13px] text-zinc-600 dark:text-white/60 overflow-hidden text-ellipsis whitespace-nowrap max-w-[70%] font-mono">
                       {p.url.replace(/^https?:\/\//, "")}
                     </span>
                     <span style={{

@@ -102,13 +102,13 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
 
   return (
     <div
-      className={`bg-white dark:bg-zinc-900 rounded-xl border shadow-sm hover:shadow-md transition-all ${
+      className={`bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200 ${
         isBoard
           ? "border-amber-200 dark:border-amber-800/50 ring-1 ring-amber-200/50 dark:ring-amber-800/30"
           : "border-zinc-200 dark:border-zinc-800"
       }`}
     >
-      <div className="p-5">
+      <div className="p-6">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -121,15 +121,15 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
                 <TrendingUp size={10} className="text-emerald-500" />
               )}
             </div>
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{creator.name}</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">{creator.name}</h3>
             {creator.handle && (
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">@{creator.handle}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5 truncate">@{creator.handle}</p>
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
             <PlatformBadge platform={creator.platform} />
             {creator.url && (
-              <a href={creator.url} target="_blank" rel="noopener noreferrer" className="text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors">
+              <a href={creator.url} target="_blank" rel="noopener noreferrer" className="text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
                 <ExternalLink size={10} />
               </a>
             )}
@@ -138,22 +138,22 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
 
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="text-center">
-            <div className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{fmtNum(creator.subscriber_count)}</div>
-            <div className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Subs</div>
+            <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{fmtNum(creator.subscriber_count)}</div>
+            <div className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wide">Subs</div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{fmtNum(creator.content_count)}</div>
-            <div className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Videos</div>
+            <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{fmtNum(creator.content_count)}</div>
+            <div className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wide">Videos</div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{fmtNum(creator.transcript_count)}</div>
-            <div className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Transcripts</div>
+            <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{fmtNum(creator.transcript_count)}</div>
+            <div className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wide">Transcripts</div>
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-medium">Coverage</span>
+            <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wide font-medium">Coverage</span>
             <span className={`text-[10px] font-mono font-semibold ${
               coverage >= 80 ? "text-emerald-600 dark:text-emerald-400" :
               coverage >= 50 ? "text-amber-600 dark:text-amber-400" :
@@ -163,7 +163,7 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
           <CoverageBar pct={coverage} />
         </div>
 
-        <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 text-[10px] text-zinc-400 dark:text-zinc-500">
+        <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-400 dark:text-zinc-600">
           Scraped {fmtDate(creator.last_scraped_at)}
         </div>
       </div>
@@ -173,10 +173,10 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
 
 function EmptyState({ icon, title, message }: { icon: React.ReactNode; title: string; message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
       <div className="mb-3">{icon}</div>
       <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{title}</h3>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-sm">{message}</p>
+      <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-sm">{message}</p>
     </div>
   );
 }
@@ -188,11 +188,11 @@ const CHART_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#0
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-start gap-4">
-      <div className="p-2.5 bg-amber-500/10 rounded-lg text-amber-500">{icon}</div>
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none flex items-start gap-4 hover:border-amber-500/30 transition-all duration-200">
+      <div className="p-2.5 bg-amber-100 dark:bg-amber-500/10 rounded-lg text-amber-600 dark:text-amber-400">{icon}</div>
       <div>
-        <div className="text-2xl font-bold text-zinc-100 tabular-nums">{typeof value === "number" ? value.toLocaleString() : value}</div>
-        <div className="text-xs text-zinc-500 mt-0.5 uppercase tracking-wide">{label}</div>
+        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{typeof value === "number" ? value.toLocaleString() : value}</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mt-0.5">{label}</div>
       </div>
     </div>
   );
@@ -201,8 +201,8 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-widest">{title}</h2>
-      {subtitle && <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>}
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</h2>
+      {subtitle && <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5">{subtitle}</p>}
     </div>
   );
 }
@@ -210,18 +210,28 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
-      <div className="text-zinc-300 font-medium mb-1">{label}</div>
+    <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
+      <div className="text-zinc-700 dark:text-zinc-300 font-medium mb-1">{label}</div>
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-zinc-400">{p.name}:</span>
-          <span className="text-zinc-100 font-medium">{typeof p.value === "number" ? p.value.toLocaleString() : p.value}</span>
+          <span className="text-zinc-500 dark:text-zinc-400">{p.name}:</span>
+          <span className="text-zinc-900 dark:text-zinc-100 font-medium">{typeof p.value === "number" ? p.value.toLocaleString() : p.value}</span>
         </div>
       ))}
     </div>
   );
 };
+
+// ─── Chart Wrapper ────────────────────────────────────────────────────────────
+
+function ChartCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none">
+      {children}
+    </div>
+  );
+}
 
 // ─── Analytics Tab Content ────────────────────────────────────────────────────
 
@@ -308,8 +318,8 @@ function AnalyticsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="flex items-center gap-3 text-amber-500">
-          <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+          <div className="w-5 h-5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm font-medium">Loading analytics...</span>
         </div>
       </div>
@@ -319,9 +329,9 @@ function AnalyticsTab() {
   if (error) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="bg-zinc-900 border border-red-800 rounded-xl p-6 max-w-md">
-          <h2 className="text-sm font-semibold text-red-400 mb-2">Analytics Error</h2>
-          <p className="text-xs text-zinc-400">{error}</p>
+        <div className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md shadow-sm dark:shadow-none">
+          <h2 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">Analytics Error</h2>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">{error}</p>
         </div>
       </div>
     );
@@ -329,8 +339,16 @@ function AnalyticsTab() {
 
   if (!data) return null;
 
+  const gridStroke = "var(--chart-grid, #e4e4e7)";
+
   return (
     <div className="space-y-10">
+      {/* CSS variable for chart grid color */}
+      <style>{`
+        :root { --chart-grid: #e4e4e7; --chart-tick: #71717a; }
+        .dark { --chart-grid: #27272a; --chart-tick: #71717a; }
+      `}</style>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<BarChart3 size={18} />} label="Creators Tracked" value={data.summary.total_creators} />
@@ -342,28 +360,28 @@ function AnalyticsTab() {
       {/* Content Per Creator */}
       <section>
         <SectionHeader title="Content Per Creator" subtitle="Total videos/posts scraped per creator" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <ChartCard>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={contentBarData} margin={{ top: 5, right: 20, bottom: 60, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fill: "#71717a", fontSize: 10 }} interval={0} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} interval={0} />
+              <YAxis tick={{ fill: "var(--chart-tick)", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="count" fill={AMBER} radius={[4, 4, 0, 0]} name="Content" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </ChartCard>
       </section>
 
       {/* Content Timeline */}
       <section>
         <SectionHeader title="Content Timeline" subtitle="Monthly output — top 5 creators" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <ChartCard>
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={timelineData} margin={{ top: 5, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="month" tick={{ fill: "#71717a", fontSize: 10 }} interval={2} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="month" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} interval={2} />
+              <YAxis tick={{ fill: "var(--chart-tick)", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               {top5Creators.map((name, i) => (
                 <Line key={name} type="monotone" dataKey={name} stroke={CHART_COLORS[i]} strokeWidth={2} dot={false} name={name} />
@@ -372,53 +390,53 @@ function AnalyticsTab() {
           </ResponsiveContainer>
           <div className="flex flex-wrap gap-4 mt-3 justify-center">
             {top5Creators.map((name, i) => (
-              <div key={name} className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <div key={name} className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: CHART_COLORS[i] }} />
                 {name}
               </div>
             ))}
           </div>
-        </div>
+        </ChartCard>
       </section>
 
       {/* Engagement Metrics */}
       <section>
         <SectionHeader title="Engagement Metrics" subtitle="Aggregated views, likes, and comments per creator" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <ChartCard>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={engagementData} margin={{ top: 5, right: 20, bottom: 60, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fill: "#71717a", fontSize: 10 }} interval={0} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} tickFormatter={(v) => v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} interval={0} />
+              <YAxis tick={{ fill: "var(--chart-tick)", fontSize: 10 }} tickFormatter={(v) => v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="views" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Views" />
               <Bar dataKey="likes" fill="#10b981" radius={[4, 4, 0, 0]} name="Likes" />
               <Bar dataKey="comments" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Comments" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </ChartCard>
       </section>
 
       {/* Content Velocity */}
       <section>
         <SectionHeader title="Content Velocity" subtitle="Total posts per week — last 12 weeks" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <ChartCard>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={velocityData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="week" tick={{ fill: "#71717a", fontSize: 10 }} />
-              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="week" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} />
+              <YAxis tick={{ fill: "var(--chart-tick)", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="count" stroke={AMBER} fill={AMBER} fillOpacity={0.15} strokeWidth={2} name="Posts" />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </ChartCard>
       </section>
 
       {/* Top Topics */}
       <section>
         <SectionHeader title="Top Topics" subtitle="Most frequent terms across all transcripts" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <ChartCard>
           <div className="flex flex-wrap gap-2">
             {wordCloudData.map((w) => {
               const maxFreq = wordCloudData[0]?.size || 1;
@@ -426,48 +444,48 @@ function AnalyticsTab() {
               return (
                 <span
                   key={w.name}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-800/50 transition-colors hover:border-amber-700"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 transition-colors hover:border-amber-500/30"
                   style={{ opacity: 0.5 + (w.size / maxFreq) * 0.5 }}
                 >
-                  <span className="text-amber-500 font-semibold" style={{ fontSize: `${Math.max(11, scale * 16)}px` }}>
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold" style={{ fontSize: `${Math.max(11, scale * 16)}px` }}>
                     {w.name}
                   </span>
-                  <span className="text-[10px] text-zinc-500 tabular-nums">{w.size.toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-600 tabular-nums">{w.size.toLocaleString()}</span>
                 </span>
               );
             })}
           </div>
-        </div>
+        </ChartCard>
       </section>
 
       {/* Cross-Creator Topic Overlap */}
       <section>
         <SectionHeader title="Cross-Creator Topic Overlap" subtitle="Topics shared between multiple creators" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left px-5 py-3 text-zinc-500 uppercase tracking-wider font-medium">Topic</th>
-                <th className="text-left px-5 py-3 text-zinc-500 uppercase tracking-wider font-medium">Creators</th>
-                <th className="text-right px-5 py-3 text-zinc-500 uppercase tracking-wider font-medium">Shared By</th>
-                <th className="text-right px-5 py-3 text-zinc-500 uppercase tracking-wider font-medium">Total Mentions</th>
+              <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Topic</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Creators</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Shared By</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Mentions</th>
               </tr>
             </thead>
-            <tbody>
-              {overlapData.map((row, i) => (
-                <tr key={row.word} className={`border-b border-zinc-800/50 ${i % 2 === 0 ? "bg-zinc-900" : "bg-zinc-900/50"}`}>
-                  <td className="px-5 py-3 font-medium text-amber-500">{row.word}</td>
-                  <td className="px-5 py-3 text-zinc-400">
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {overlapData.map((row) => (
+                <tr key={row.word} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                  <td className="px-5 py-3 font-medium text-amber-600 dark:text-amber-400">{row.word}</td>
+                  <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">
                     <div className="flex flex-wrap gap-1">
                       {row.creators.map((c) => (
-                        <span key={c} className="inline-block px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px]">
+                        <span key={c} className="inline-block px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-[10px]">
                           {c}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-right text-zinc-300 tabular-nums">{row.creator_count}</td>
-                  <td className="px-5 py-3 text-right text-zinc-300 tabular-nums">{row.total_freq.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right text-zinc-700 dark:text-zinc-300 tabular-nums">{row.creator_count}</td>
+                  <td className="px-5 py-3 text-right text-zinc-700 dark:text-zinc-300 tabular-nums">{row.total_freq.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -567,7 +585,7 @@ export default function CreatorsPage() {
               Dashboard
             </Link>
             <span className="text-zinc-200 dark:text-zinc-700">/</span>
-            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Creator Intelligence</h1>
+            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Creator Intelligence</h1>
           </div>
           <div className="flex items-center gap-3">
             <GlobalSearch />
@@ -579,15 +597,15 @@ export default function CreatorsPage() {
       <main className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8">
 
         {/* Tab Bar */}
-        <div className="flex items-center gap-1 bg-zinc-950 rounded-lg p-1 w-fit">
+        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 w-fit">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
-                  ? "bg-amber-500 text-zinc-950"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-amber-500 text-white dark:text-zinc-950 shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               }`}
             >
               {tab.label}
@@ -601,27 +619,27 @@ export default function CreatorsPage() {
             {/* Page header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Creators</h1>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Creators</h1>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                   {loading ? "Loading..." : `${creators.length} creators tracked`}
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-600" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Filter by name..."
-                    className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 w-40"
+                    className="pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:ring-1 focus:ring-amber-500/50 w-40"
                   />
                 </div>
                 <select
                   value={platformFilter}
                   onChange={(e) => setPlatformFilter(e.target.value)}
-                  className="text-xs px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 capitalize"
+                  className="text-xs px-2 py-1.5 rounded-xl border bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 outline-none focus:ring-1 focus:ring-amber-500/50 capitalize"
                 >
                   {platforms.map((p) => (
                     <option key={p} value={p} className="capitalize">{p === "all" ? "All Platforms" : p}</option>
@@ -630,7 +648,7 @@ export default function CreatorsPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="text-xs px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+                  className="text-xs px-2 py-1.5 rounded-xl border bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 outline-none focus:ring-1 focus:ring-amber-500/50"
                 >
                   <option value="subscribers">Sort: Subscribers</option>
                   <option value="transcripts">Sort: Transcripts</option>
@@ -643,12 +661,12 @@ export default function CreatorsPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-48 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                  <div key={i} className="h-48 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
                 ))}
               </div>
             ) : creators.length === 0 ? (
               <EmptyState
-                icon={<Users size={24} className="text-zinc-300 dark:text-zinc-600" />}
+                icon={<Users size={24} className="text-zinc-400 dark:text-zinc-600" />}
                 title="No creators found"
                 message="The content intelligence service returned no creators. Check that raiser-content-intel is running."
               />
@@ -657,7 +675,7 @@ export default function CreatorsPage() {
                 {boardCreators.length > 0 && (
                   <section>
                     <div className="flex items-center gap-2 mb-3">
-                      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                         Priority Creators
                       </h2>
                       <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
@@ -673,7 +691,7 @@ export default function CreatorsPage() {
                 <section>
                   {boardCreators.length > 0 && (
                     <div className="flex items-center gap-2 mb-3">
-                      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                         All Creators ({regularCreators.length})
                       </h2>
                       <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
@@ -681,7 +699,7 @@ export default function CreatorsPage() {
                   )}
                   {filteredCreators.length === 0 ? (
                     <EmptyState
-                      icon={<Search size={20} className="text-zinc-300 dark:text-zinc-600" />}
+                      icon={<Search size={20} className="text-zinc-400 dark:text-zinc-600" />}
                       title="No results"
                       message={`No creators match "${search}"`}
                     />

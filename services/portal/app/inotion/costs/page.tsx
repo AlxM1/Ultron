@@ -69,7 +69,6 @@ function fmtTokens(n: number): string {
 }
 
 function shortDate(iso: string): string {
-  // "2026-02-19" → "Feb 19"
   const d = new Date(iso + "T12:00:00Z");
   return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 }
@@ -113,9 +112,8 @@ function TokenResetCountdown({ resetTime }: { resetTime: string }) {
 
   const computeNext = useCallback(() => {
     const now = new Date();
-    // Next Thursday 07:00 PST = UTC-8 → 15:00 UTC
     const target = new Date(now);
-    const dayOfWeek = now.getUTCDay(); // 0=Sun, 4=Thu
+    const dayOfWeek = now.getUTCDay();
     const daysUntilThursday = (4 - dayOfWeek + 7) % 7;
     target.setUTCDate(target.getUTCDate() + daysUntilThursday);
     target.setUTCHours(15, 0, 0, 0);
@@ -148,7 +146,7 @@ function TokenResetCountdown({ resetTime }: { resetTime: string }) {
     : `Next token reset in ${h}h ${pad(m)}m ${pad(s)}s — ${resetTime}`;
 
   return (
-    <div className={`rounded-xl border px-5 py-3 text-xs font-mono flex items-center justify-between ${bannerClass}`}>
+    <div className={`rounded-2xl border px-5 py-3 text-xs font-mono flex items-center justify-between ${bannerClass}`}>
       <span>{label}</span>
       <span className="opacity-60 text-[10px] uppercase tracking-widest">Weekly Reset</span>
     </div>
@@ -195,37 +193,37 @@ function SummaryCards({ data }: { data: CostData }) {
         return (
           <div
             key={c.label}
-            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm"
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200"
           >
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 {c.label}
               </p>
               <Icon size={12} className={c.accent} />
             </div>
-            <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{c.primary}</p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{c.sub}</p>
+            <p className="text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">{c.primary}</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">{c.sub}</p>
           </div>
         );
       })}
 
       {/* Budget card with progress bar */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
             BUDGET REMAINING
           </p>
-          <DollarSign size={12} className="text-amber-500" />
+          <DollarSign size={12} className="text-amber-600 dark:text-amber-400" />
         </div>
-        <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{budgetRemaining}%</p>
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Resets {data.resetTime}</p>
+        <p className="text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">{budgetRemaining}%</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">Resets {data.resetTime}</p>
         <div className="mt-3 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5">
           <div
             className={`h-full rounded-full transition-all ${barColor}`}
             style={{ width: `${budgetRemaining}%` }}
           />
         </div>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 font-mono">
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mt-1 font-mono">
           {fmtUSD(data.weeklyUSD)} / {fmtUSD(data.budgetUSD)} used
         </p>
       </div>
@@ -243,9 +241,9 @@ function SpendChart({ daily }: { daily: DailyEntry[] }) {
   const max = Math.max(...values, 0.01);
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           7-Day Spend
         </h2>
         <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -269,7 +267,6 @@ function SpendChart({ daily }: { daily: DailyEntry[] }) {
         {daily.map((entry, i) => {
           const val   = currency === "USD" ? entry.costUSD : entry.costCAD;
           const heightPct = (val / max) * 100;
-          // Gradient darkness by spend level
           const opacity = 0.35 + (val / max) * 0.65;
 
           return (
@@ -290,7 +287,7 @@ function SpendChart({ daily }: { daily: DailyEntry[] }) {
                   }}
                 />
               </div>
-              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 font-mono text-center leading-tight">
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-600 mt-2 font-mono text-center leading-tight">
                 {shortDate(entry.date)}
               </p>
               <p className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400 font-mono">
@@ -354,9 +351,9 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm dark:shadow-none overflow-hidden">
+      <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           Agent Cost Breakdown
         </h2>
       </div>
@@ -376,7 +373,7 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
               ] as [SortKey | null, string][]).map(([key, label]) => (
                 <th
                   key={label}
-                  className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none ${key ? "cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300" : ""}`}
+                  className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 select-none ${key ? "cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300" : ""}`}
                   onClick={() => key && handleSort(key)}
                 >
                   <span className="flex items-center gap-1">
@@ -397,12 +394,10 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
                   className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer relative"
                   onClick={() => window.open(wikiUrl, "_blank")}
                 >
-                  {/* Agent name with tooltip */}
-                  <td className="px-4 py-3 font-medium text-zinc-800 dark:text-zinc-200 relative">
+                  <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100 relative">
                     <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {agent.name}
                     </span>
-                    {/* Tooltip */}
                     <div className="absolute bottom-full left-4 mb-2 px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 w-52 leading-relaxed">
                       <div className="font-semibold mb-0.5">{agent.name}</div>
                       <div className="opacity-75">{agent.category}</div>
@@ -411,14 +406,13 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
                     </div>
                   </td>
 
-                  {/* Model badge */}
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-medium ${modelBadgeClass(agent.model)}`}>
                       {modelLabel(agent.model)}
                     </span>
                   </td>
 
-                  <td className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                  <td className="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400 font-mono">
                     {agent.runs > 0 ? agent.runs : "—"}
                   </td>
 
@@ -430,7 +424,7 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
                     {fmtTokens(agent.tokensOut)}
                   </td>
 
-                  <td className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-500 font-mono">
+                  <td className="px-4 py-3 text-xs text-zinc-400 dark:text-zinc-600 font-mono">
                     {agent.cacheRead > 0 ? fmtTokens(agent.cacheRead) : "—"}
                   </td>
 
@@ -438,7 +432,7 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
                     {fmtUSD(agent.costUSD)}
                   </td>
 
-                  <td className="px-4 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono">
+                  <td className="px-4 py-3 text-xs text-zinc-400 dark:text-zinc-600 font-mono">
                     {fmtCAD(agent.costCAD)}
                   </td>
                 </tr>
@@ -446,10 +440,9 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
             })}
           </tbody>
 
-          {/* Footer totals */}
           <tfoot>
             <tr className="border-t-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-              <td className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              <td className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-500">
                 Total
               </td>
               <td className="px-4 py-3" />
@@ -465,10 +458,10 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
               <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300">
                 {fmtTokens(totalCache)}
               </td>
-              <td className="px-4 py-3 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-50">
+              <td className="px-4 py-3 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-100">
                 {fmtUSD(totalUSD)}
               </td>
-              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-500 dark:text-zinc-400">
+              <td className="px-4 py-3 text-xs font-semibold font-mono text-zinc-600 dark:text-zinc-400">
                 {fmtCAD(totalCAD)}
               </td>
             </tr>
@@ -484,7 +477,6 @@ function AgentTable({ agents }: { agents: AgentRow[] }) {
 function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
-  // Build conic-gradient stops
   let angle = 0;
   const stops: string[] = [];
   const segments = categories.map(c => {
@@ -501,13 +493,12 @@ function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
   const activeCategory = hovered ? categories.find(c => c.category === hovered) : null;
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-5">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-5">
         Cost by Category
       </h2>
 
       <div className="flex flex-col sm:flex-row items-center gap-8">
-        {/* Donut ring */}
         <div className="relative flex-shrink-0">
           <div
             className="w-40 h-40 rounded-full transition-all duration-300"
@@ -517,25 +508,23 @@ function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
               WebkitMask: "radial-gradient(circle, transparent 48%, black 49%)",
             }}
           />
-          {/* Center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             {activeCategory ? (
               <>
-                <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{fmtUSD(activeCategory.costUSD)}</p>
-                <p className="text-[9px] text-zinc-500 dark:text-zinc-400 text-center leading-tight mt-0.5 max-w-[72px]">
+                <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{fmtUSD(activeCategory.costUSD)}</p>
+                <p className="text-[9px] text-zinc-400 dark:text-zinc-600 text-center leading-tight mt-0.5 max-w-[72px]">
                   {activeCategory.category}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center leading-tight">Today</p>
-                <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Spend</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-600 text-center leading-tight">Today</p>
+                <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Spend</p>
               </>
             )}
           </div>
         </div>
 
-        {/* Legend */}
         <div className="flex-1 space-y-2.5 w-full">
           {segments.map(seg => (
             <div
@@ -548,11 +537,11 @@ function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
                 className="w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform group-hover:scale-125"
                 style={{ backgroundColor: seg.color }}
               />
-              <span className="text-xs text-zinc-700 dark:text-zinc-300 flex-1 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+              <span className="text-xs text-zinc-600 dark:text-zinc-400 flex-1 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
                 {seg.category}
               </span>
-              <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400">{seg.pct}%</span>
-              <span className="text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300 w-14 text-right">
+              <span className="text-xs font-mono text-zinc-400 dark:text-zinc-600">{seg.pct}%</span>
+              <span className="text-xs font-semibold font-mono text-zinc-900 dark:text-zinc-100 w-14 text-right">
                 {fmtUSD(seg.costUSD)}
               </span>
             </div>
@@ -567,7 +556,7 @@ function CategoryDonut({ categories }: { categories: CategoryEntry[] }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
       {children}
     </h2>
   );
@@ -604,17 +593,17 @@ export default function CostsPage() {
 
         {/* Page title */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
             Cost Intelligence
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Token usage and spend across all autonomous agents. Resets weekly on Thursday 07:00 AM PST.
           </p>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-3 text-sm text-red-700 dark:text-red-400">
+          <div className="rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-3 text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
@@ -624,17 +613,16 @@ export default function CostsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-4 gap-4">
               {[1,2,3,4].map(i => (
-                <div key={i} className="h-28 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div key={i} className="h-28 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
               ))}
             </div>
-            <div className="h-56 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-            <div className="h-72 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="h-56 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div className="h-72 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
           </div>
         )}
 
         {data && (
           <>
-            {/* Section 1: Summary Cards */}
             <section>
               <SectionLabel>Overview</SectionLabel>
               <div className="mt-3">
@@ -642,7 +630,6 @@ export default function CostsPage() {
               </div>
             </section>
 
-            {/* Section 2: 7-Day Spend Chart */}
             <section>
               <SectionLabel>7-Day Spend</SectionLabel>
               <div className="mt-3">
@@ -650,7 +637,6 @@ export default function CostsPage() {
               </div>
             </section>
 
-            {/* Section 3: Agent Cost Table */}
             <section>
               <SectionLabel>Per-Agent Breakdown</SectionLabel>
               <div className="mt-3">
@@ -658,15 +644,14 @@ export default function CostsPage() {
               </div>
             </section>
 
-            {/* Section 4: Category Donut */}
             <section>
               <SectionLabel>Cost Distribution</SectionLabel>
               <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <CategoryDonut categories={data.categories} />
 
                 {/* Model price reference card */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-4">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm dark:shadow-none hover:border-amber-500/30 transition-all duration-200">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">
                     Model Pricing Reference
                   </h2>
                   <div className="space-y-4">
@@ -683,7 +668,7 @@ export default function CostsPage() {
                         }`}>
                           {m.label}
                         </span>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                        <div className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
                           <span className="font-mono">${m.input}/M</span> in
                           {" · "}
                           <span className="font-mono">${m.output}/M</span> out
@@ -694,7 +679,7 @@ export default function CostsPage() {
                     ))}
                   </div>
                   <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
                       1 USD = {data.cadRate.toFixed(4)} CAD (live rate)
                     </p>
                   </div>
@@ -702,7 +687,6 @@ export default function CostsPage() {
               </div>
             </section>
 
-            {/* Section 5: Token Reset Countdown */}
             <section>
               <TokenResetCountdown resetTime={data.resetTime} />
             </section>

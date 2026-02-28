@@ -74,8 +74,9 @@ function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
 
   if (!feed.length) {
     return (
-      <div className="text-sm text-zinc-400 dark:text-zinc-500 text-center py-6">
-        No recent activity
+      <div className="flex flex-col items-center justify-center py-10 text-zinc-400 dark:text-zinc-600">
+        <svg className="w-8 h-8 mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <span className="text-sm">No recent activity</span>
       </div>
     );
   }
@@ -109,11 +110,11 @@ function LiveActivityFeed({ agents }: { agents: AgentJob[] }) {
             {entry.agent}
           </span>
           {entry.duration && (
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono hidden group-hover:block">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono hidden group-hover:block">
               {entry.duration}
             </span>
           )}
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono flex-shrink-0">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono flex-shrink-0">
             {fmtAge(entry.time)}
           </span>
         </div>
@@ -146,10 +147,10 @@ export default function PortalDashboard() {
     <div className="space-y-6 sm:space-y-8">
       {/* Page title */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           Operations Dashboard
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           One founder. 17 autonomous agents. 24/7 execution.
         </p>
       </div>
@@ -167,8 +168,8 @@ export default function PortalDashboard() {
         <SectionLabel>Agent Schedule</SectionLabel>
         <div className="mt-3">
           {agentsLoading ? (
-            <div className="h-48 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-              <Loader2 size={20} className="animate-spin text-zinc-400 dark:text-zinc-500" />
+            <div className="h-48 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+              <Loader2 size={20} className="animate-spin text-zinc-400 dark:text-zinc-600" />
             </div>
           ) : (
             <PortalCalendar agents={agents} />
@@ -178,9 +179,9 @@ export default function PortalDashboard() {
 
       {/* Activity Heatmap */}
       <section>
-        <SectionLabel>Activity Heatmap -- 365 Days</SectionLabel>
-        <div className="mt-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 sm:p-5 shadow-sm overflow-x-auto">
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
+        <SectionLabel>Activity Heatmap — 365 Days</SectionLabel>
+        <div className="mt-3 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm dark:shadow-none overflow-x-auto">
+          <p className="text-xs text-zinc-400 dark:text-zinc-600 mb-4">
             Agent run frequency over the past year. The machine never sleeps.
           </p>
           <ActivityHeatmap />
@@ -201,28 +202,33 @@ export default function PortalDashboard() {
           <SectionLabel>Agent Roster</SectionLabel>
           <Link
             href="/inotion/agents"
-            className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+            className="text-xs text-zinc-400 dark:text-zinc-600 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
           >
             View all
           </Link>
         </div>
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-x-auto">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none overflow-x-auto">
           {agentsLoading ? (
             <div className="h-32 flex items-center justify-center">
-              <Loader2 size={20} className="animate-spin text-zinc-400 dark:text-zinc-500" />
+              <Loader2 size={20} className="animate-spin text-zinc-400 dark:text-zinc-600" />
+            </div>
+          ) : agents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-zinc-400 dark:text-zinc-600">
+              <svg className="w-8 h-8 mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <span className="text-sm">No agents found</span>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[600px]">
               <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Agent</th>
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden sm:table-cell">Role</th>
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Schedule</th>
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hidden md:table-cell">Model</th>
-                  <th className="text-center px-4 sm:px-5 py-3 text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Category</th>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Agent</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 hidden sm:table-cell">Role</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Schedule</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 hidden md:table-cell">Model</th>
+                  <th className="text-center px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Category</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {agents.map((agent) => {
                   const wikiUrl = `https://inotion.00raiser.space/search/${encodeURIComponent(agent.name)}`;
                   return (
@@ -231,23 +237,23 @@ export default function PortalDashboard() {
                       className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
                       onClick={() => window.open(wikiUrl, "_blank")}
                     >
-                      <td className="px-4 sm:px-5 py-3 font-medium text-zinc-800 dark:text-zinc-200">
-                        <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{agent.name}</span>
+                      <td className="px-5 py-3.5 font-medium text-zinc-900 dark:text-zinc-100">
+                        <span className="group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{agent.name}</span>
                       </td>
-                      <td className="px-4 sm:px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 hidden sm:table-cell">
-                        {(agent as any).role ?? "--"}
+                      <td className="px-5 py-3.5 text-xs text-zinc-600 dark:text-zinc-400 hidden sm:table-cell">
+                        {(agent as any).role ?? "—"}
                       </td>
-                      <td className="px-4 sm:px-5 py-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{agent.scheduleDesc}</td>
-                      <td className="px-4 sm:px-5 py-3 text-xs text-zinc-400 dark:text-zinc-500 font-mono hidden md:table-cell">
-                        {(agent as any).model ?? "--"}
+                      <td className="px-5 py-3.5 text-xs text-zinc-600 dark:text-zinc-400 font-mono">{agent.scheduleDesc}</td>
+                      <td className="px-5 py-3.5 text-xs text-zinc-400 dark:text-zinc-600 font-mono hidden md:table-cell">
+                        {(agent as any).model ?? "—"}
                       </td>
-                      <td className="px-4 sm:px-5 py-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
                           agent.category === "always-running"
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                            ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
                             : agent.category === "daily"
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                            : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-800"
+                            : "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 ring-1 ring-purple-200 dark:ring-purple-800"
                         }`}>
                           {agent.category}
                         </span>
@@ -266,7 +272,7 @@ export default function PortalDashboard() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
       {children}
     </h2>
   );

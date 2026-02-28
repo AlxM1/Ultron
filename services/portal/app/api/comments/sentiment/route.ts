@@ -36,80 +36,94 @@ export async function GET(req: NextRequest) {
     const keyword = searchParams.get("keyword");
     const from = searchParams.get("from") || "2020-01-01";
     const to = searchParams.get("to") || "2099-12-31";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "500", 10), 5000);
-
     if (!keyword) {
       return NextResponse.json({ error: "keyword parameter is required" }, { status: 400 });
     }
 
-    const { rows } = await pool.query(
-      `SELECT c.text, c.published_at, c.likes, c.author, cr.name as creator_name
+    // Aggregated counts across ALL matching rows (no limit)
+    // Includes both keyword matches in comment text AND comments from videos
+    // where the keyword matches a guest tag (board member appearances)
+    const { rows: aggRows } = await pool.query(
+      `SELECT 
+         count(*) as total,
+         cr.name as creator_name,
+         c.sentiment,
+         to_char(c.published_at, 'YYYY-MM') as month
        FROM comments c
        JOIN content co ON c.content_id = co.id
        JOIN creators cr ON co.creator_id = cr.id
-       WHERE c.text ILIKE '%' || $1 || '%'
+       WHERE (c.text ILIKE '%' || $1 || '%'
+              OR co.id IN (SELECT content_id FROM content_tags WHERE tag_type = 'guest' AND tag_value ILIKE $1))
          AND c.published_at BETWEEN $2 AND $3
-       ORDER BY c.published_at DESC
-       LIMIT $4`,
-      [keyword, from, to, limit]
+       GROUP BY cr.name, c.sentiment, to_char(c.published_at, 'YYYY-MM')`,
+      [keyword, from, to]
     );
 
+    // Top comments by likes (limited) - same expanded search
+    const { rows } = await pool.query(
+      `SELECT c.text, c.published_at, c.likes, c.author, c.sentiment, cr.name as creator_name
+       FROM comments c
+       JOIN content co ON c.content_id = co.id
+       JOIN creators cr ON co.creator_id = cr.id
+       WHERE (c.text ILIKE '%' || $1 || '%'
+              OR co.id IN (SELECT content_id FROM content_tags WHERE tag_type = 'guest' AND tag_value ILIKE $1))
+         AND c.published_at BETWEEN $2 AND $3
+       ORDER BY c.likes DESC NULLS LAST
+       LIMIT 20`,
+      [keyword, from, to]
+    );
+
+    // Build aggregates from pre-grouped DB results (covers ALL matching rows)
     let posCount = 0, negCount = 0, neuCount = 0;
-    const posThemes: Record<string, number> = {};
-    const negThemes: Record<string, number> = {};
     const timeline: Record<string, { positive: number; negative: number; neutral: number }> = {};
     const creatorsMap: Record<string, { positive: number; negative: number; neutral: number }> = {};
 
-    interface CommentRow {
-      text: string;
-      published_at: string | Date;
-      likes: number;
-      author: string;
-      creator_name: string;
-    }
+    for (const row of aggRows) {
+      const count = parseInt(row.total, 10);
+      const s = row.sentiment || "neutral";
+      const month = row.month;
+      const creator = row.creator_name;
 
-    const classified = rows.map((row: CommentRow) => {
-      const sentiment = classifySentiment(row.text);
-      const date = new Date(row.published_at);
-      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (s === "positive") posCount += count;
+      else if (s === "negative") negCount += count;
+      else neuCount += count;
 
-      if (sentiment === "positive") {
-        posCount++;
-        for (const t of getThemes(row.text, POSITIVE)) posThemes[t] = (posThemes[t] || 0) + 1;
-      } else if (sentiment === "negative") {
-        negCount++;
-        for (const t of getThemes(row.text, NEGATIVE)) negThemes[t] = (negThemes[t] || 0) + 1;
-      } else {
-        neuCount++;
+      if (month) {
+        if (!timeline[month]) timeline[month] = { positive: 0, negative: 0, neutral: 0 };
+        if (s === "positive") timeline[month].positive += count;
+        else if (s === "negative") timeline[month].negative += count;
+        else timeline[month].neutral += count;
       }
 
-      if (!timeline[month]) timeline[month] = { positive: 0, negative: 0, neutral: 0 };
-      timeline[month][sentiment]++;
+      if (creator) {
+        if (!creatorsMap[creator]) creatorsMap[creator] = { positive: 0, negative: 0, neutral: 0 };
+        if (s === "positive") creatorsMap[creator].positive += count;
+        else if (s === "negative") creatorsMap[creator].negative += count;
+        else creatorsMap[creator].neutral += count;
+      }
+    }
 
-      const cn = row.creator_name;
-      if (!creatorsMap[cn]) creatorsMap[cn] = { positive: 0, negative: 0, neutral: 0 };
-      creatorsMap[cn][sentiment]++;
-
-      return { ...row, sentiment, date: date.toISOString().split("T")[0] };
-    });
-
-    const total = rows.length;
+    const total = posCount + negCount + neuCount;
     const pct = (n: number) => total ? Math.round((n / total) * 100) : 0;
 
+    // Themes from top comments text
+    const posThemes: Record<string, number> = {};
+    const negThemes: Record<string, number> = {};
+    for (const row of rows) {
+      for (const t of getThemes(row.text, POSITIVE)) posThemes[t] = (posThemes[t] || 0) + 1;
+      for (const t of getThemes(row.text, NEGATIVE)) negThemes[t] = (negThemes[t] || 0) + 1;
+    }
     const topByTheme = (themes: Record<string, number>) =>
       Object.entries(themes).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => k);
 
-    const topComments = classified
-      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-      .slice(0, 10)
-      .map(c => ({
-        text: c.text.slice(0, 300),
-        sentiment: c.sentiment,
-        likes: c.likes || 0,
-        date: c.date,
-        creator: c.creator_name,
-        author: c.author,
-      }));
+    const topComments = rows.map((c: any) => ({
+      text: c.text.slice(0, 300),
+      sentiment: c.sentiment || classifySentiment(c.text),
+      likes: c.likes || 0,
+      date: c.published_at ? new Date(c.published_at).toISOString().split("T")[0] : "",
+      creator: c.creator_name,
+      author: c.author,
+    }));
 
     const timelineSorted = Object.entries(timeline)
       .sort(([a], [b]) => a.localeCompare(b))

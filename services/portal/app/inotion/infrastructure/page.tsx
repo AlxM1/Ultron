@@ -36,10 +36,10 @@ export default function InfrastructurePage() {
   return (
     <>
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold">Infrastructure</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Infrastructure</h1>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -47,19 +47,19 @@ export default function InfrastructurePage() {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm">
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
           {error}
         </div>
       )}
 
       {loading && !containers.length ? (
-        <p className="text-zinc-500">Loading...</p>
+        <p className="text-zinc-400 dark:text-zinc-500">Loading...</p>
       ) : (
         <div className="grid gap-3">
           {containers.map((c) => (
             <div
               key={c.name}
-              className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+              className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm dark:shadow-none"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -68,20 +68,20 @@ export default function InfrastructurePage() {
                   }`}
                 />
                 <div>
-                  <p className="font-medium">{c.name}</p>
-                  <p className="text-sm text-zinc-500">{c.image}</p>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{c.name}</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-500">{c.image}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-zinc-400">{c.status}</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{c.status}</p>
                 {c.ports && (
-                  <p className="text-xs text-zinc-600 font-mono">{c.ports}</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">{c.ports}</p>
                 )}
               </div>
             </div>
           ))}
           {containers.length === 0 && !error && (
-            <p className="text-zinc-500">No containers found.</p>
+            <p className="text-zinc-400 dark:text-zinc-500">No containers found.</p>
           )}
         </div>
       )}

@@ -9,6 +9,7 @@ Usage:
 """
 
 import json
+import os
 import sys
 import time
 import urllib.parse
@@ -53,14 +54,38 @@ FEATURES = {
 class TwitterScraper:
     def __init__(self):
         self.client = httpx.Client(timeout=15, follow_redirects=True)
+        # Use authenticated session if cookies available, else fall back to guest token
+        auth_token = os.environ.get("X_AUTH_TOKEN", "")
+        ct0 = os.environ.get("X_CT0", "")
+        # Fallback: read from credentials file
+        if not auth_token or not ct0:
+            creds_path = os.path.expanduser("~/.openclaw/.credentials")
+            if os.path.exists(creds_path):
+                with open(creds_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("X_AUTH_TOKEN="):
+                            auth_token = line.split("=", 1)[1]
+                        elif line.startswith("X_CT0="):
+                            ct0 = line.split("=", 1)[1]
+        self.authenticated = bool(auth_token and ct0)
         self.headers = {
             "Authorization": BEARER,
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         }
-        self.guest_token = None
-        self._refresh_guest_token()
+        if self.authenticated:
+            self.headers["x-csrf-token"] = ct0
+            self.client.cookies.set("auth_token", auth_token, domain=".x.com")
+            self.client.cookies.set("ct0", ct0, domain=".x.com")
+            print("[auth] Using authenticated session")
+        else:
+            self.guest_token = None
+            self._refresh_guest_token()
+            print("[auth] Using guest token (limited)")
 
     def _refresh_guest_token(self):
+        if self.authenticated:
+            return
         resp = self.client.post(
             "https://api.twitter.com/1.1/guest/activate.json",
             headers=self.headers,
@@ -74,16 +99,18 @@ class TwitterScraper:
             "variables": json.dumps(variables),
             "features": json.dumps(FEATURES),
         })
+        base = "https://x.com" if self.authenticated else "https://twitter.com"
         resp = self.client.get(
-            f"https://twitter.com/i/api/graphql/{endpoint}?{params}",
+            f"{base}/i/api/graphql/{endpoint}?{params}",
             headers=self.headers,
         )
         if resp.status_code == 429:
-            print("  Rate limited, refreshing guest token...")
-            time.sleep(2)
-            self._refresh_guest_token()
+            print("  Rate limited, waiting 30s...")
+            time.sleep(30)
+            if not self.authenticated:
+                self._refresh_guest_token()
             resp = self.client.get(
-                f"https://twitter.com/i/api/graphql/{endpoint}?{params}",
+                f"{base}/i/api/graphql/{endpoint}?{params}",
                 headers=self.headers,
             )
         resp.raise_for_status()

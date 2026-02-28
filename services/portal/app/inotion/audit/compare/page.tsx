@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Minus, Loader2, Trophy, TrendingUp, TrendingDown } from "lucide-react";
+import { DIMENSION_LABELS } from "../../_lib/constants";
 
 interface DimensionData {
   score: number;
@@ -31,14 +32,6 @@ interface ComparisonResult {
   site_analysis: SiteAnalysis[];
   compared_at: string;
 }
-
-const DIMENSION_LABELS: Record<string, string> = {
-  ai_citability: "AI Citability",
-  schema_readiness: "Schema Readiness",
-  eeat_signals: "E-E-A-T Signals",
-  content_structure: "Content Structure",
-  platform_visibility: "Platform Visibility",
-};
 
 const DIMENSIONS = Object.keys(DIMENSION_LABELS);
 

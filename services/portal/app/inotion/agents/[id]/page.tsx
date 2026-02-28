@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Activity, Clock, Cpu, AlertTriangle } from "lucide-react";
 import ThemeToggle from "../../../components/inotion/ThemeToggle";
+import { CATEGORY_COLORS } from "../../_lib/constants";
 
 interface Agent {
   id: string;
@@ -39,12 +40,6 @@ function fmtDate(iso?: string | null): string {
   if (h < 24) return `${h}h ago`;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
-
-const CATEGORY_COLORS: Record<string, string> = {
-  "always-running": "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
-  daily: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
-  weekly: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
-};
 
 export default function AgentDetailPage() {
   const params = useParams();

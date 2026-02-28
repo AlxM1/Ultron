@@ -7,6 +7,7 @@ import ThemeToggle from "../../components/inotion/ThemeToggle";
 import GlobalSearch from "../../components/inotion/GlobalSearch";
 import PortalCalendar from "../../components/inotion/PortalCalendar";
 import type { AgentJob } from "../../components/inotion/PortalCalendar";
+import { CATEGORY_COLORS } from "../_lib/constants";
 
 interface AgentDetail extends AgentJob {
   role?: string;
@@ -18,12 +19,6 @@ interface AgentDetail extends AgentJob {
   status?: "active" | "failed" | "pending";
   errorCount7d?: number;
 }
-
-const CATEGORY_COLORS = {
-  "always-running": "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-  daily: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  weekly: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-};
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return "—";

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search, Loader2, Download, Wrench, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { PRIORITY_ORDER, PRIORITY_COLORS, DIMENSION_LABELS } from "../_lib/constants";
 
 interface DimensionData {
   score: number;
@@ -31,14 +32,6 @@ interface FixesResponse {
   fixes: Fix[];
   summary: { critical: number; high: number; medium: number; low: number };
 }
-
-const PRIORITY_ORDER = ["critical", "high", "medium", "low"] as const;
-const PRIORITY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  critical: { bg: "rgba(239,68,68,0.15)", border: "rgba(239,68,68,0.4)", text: "#ef4444" },
-  high: { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.4)", text: "#eab308" },
-  medium: { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.4)", text: "#3b82f6" },
-  low: { bg: "rgba(34,197,94,0.15)", border: "rgba(34,197,94,0.4)", text: "#22c55e" },
-};
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -236,14 +229,6 @@ function FixesPanel({ report }: { report: AuditReport }) {
     </div>
   );
 }
-
-const DIMENSION_LABELS: Record<string, string> = {
-  ai_citability: "AI Citability",
-  schema_readiness: "Schema Readiness",
-  eeat_signals: "E-E-A-T Signals",
-  content_structure: "Content Structure",
-  platform_visibility: "Platform Visibility",
-};
 
 function scoreColor(score: number): string {
   if (score >= 80) return "#22c55e";

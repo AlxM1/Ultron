@@ -6,6 +6,7 @@ import { ArrowLeft, Search, Loader2, TrendingUp, TrendingDown, Minus, Clock, Tar
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { DIMENSION_LABELS, DIMENSION_COLORS } from "../../_lib/constants";
 
 interface DimensionData {
   score: number;
@@ -31,22 +32,6 @@ interface TrendData {
   change: { overall: number; dimensions: Record<string, number> } | null;
   issuesDelta: { fixed: number; new: number; fixedList: string[]; newList: string[] } | null;
 }
-
-const DIMENSION_LABELS: Record<string, string> = {
-  ai_citability: "AI Citability",
-  schema_readiness: "Schema Readiness",
-  eeat_signals: "E-E-A-T Signals",
-  content_structure: "Content Structure",
-  platform_visibility: "Platform Visibility",
-};
-
-const DIMENSION_COLORS: Record<string, string> = {
-  ai_citability: "#f59e0b",
-  schema_readiness: "#3b82f6",
-  eeat_signals: "#22c55e",
-  content_structure: "#a855f7",
-  platform_visibility: "#ef4444",
-};
 
 function scoreColor(score: number): string {
   if (score >= 80) return "#22c55e";

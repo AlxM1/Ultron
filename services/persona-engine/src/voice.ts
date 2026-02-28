@@ -52,6 +52,12 @@ const VOICE_MAP: Record<string, string> = {
   'Gary Vee': 'gary-vaynerchuk.wav',
   'Riley Brown': 'riley-brown.wav',
   'Riley': 'riley-brown.wav',
+  "Kevin O'Leary": 'kevin-oleary.wav',
+  "O'Leary": 'kevin-oleary.wav',
+  'Mr. Wonderful': 'kevin-oleary.wav',
+  // Bonus
+  'Joe Rogan': 'joe-rogan.wav',
+  'Rogan': 'joe-rogan.wav',
 };
 
 export function getVoiceProfileUrl(creatorName: string): string | null {
@@ -83,6 +89,8 @@ export async function generateVoice(
         text,
         speaker_wav_url: speakerUrl,
         language: 'en',
+        exaggeration: 0.7,
+        cfg_weight: 0.8,
       }),
       signal: AbortSignal.timeout(120000),
     });

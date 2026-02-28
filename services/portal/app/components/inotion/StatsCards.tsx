@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, FileText, Cpu, Database, DollarSign, Activity } from "lucide-react";
+import { Users, FileText, Cpu, Database, DollarSign, Activity, Loader2 } from "lucide-react";
 
 interface Stats {
   totalCreators: number;
@@ -70,6 +70,16 @@ const CARDS: StatCard[] = [
   },
 ];
 
+const FALLBACK_STATS: Stats = {
+  totalCreators: 0,
+  totalTranscripts: 0,
+  activeAgents: 17,
+  totalContent: 0,
+  todayCost: 0,
+  healthyServices: 0,
+  totalServices: 6,
+};
+
 export default function StatsCards() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,12 +87,20 @@ export default function StatsCards() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/stats");
+        // Try the new v1 stats endpoint first, fall back to legacy
+        let res = await fetch("/api/v1/stats");
+        if (!res.ok) {
+          res = await fetch("/api/stats");
+        }
         if (res.ok) {
           const data = await res.json();
           setStats(data);
+        } else {
+          setStats(FALLBACK_STATS);
         }
-      } catch {}
+      } catch {
+        setStats(FALLBACK_STATS);
+      }
       setLoading(false);
     }
     load();
@@ -111,7 +129,7 @@ export default function StatsCards() {
             </div>
             <div className={`text-2xl font-bold tracking-tight ${loading ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-900 dark:text-zinc-50"}`}>
               {loading ? (
-                <div className="h-7 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                <Loader2 size={20} className="animate-spin text-zinc-400 dark:text-zinc-500" />
               ) : (
                 display
               )}

@@ -20,7 +20,7 @@ export default function PersonasPage() {
     fetch("/api/personas/")
       .then((r) => r.json())
       .then((data) => {
-        setPersonas(Array.isArray(data) ? data : data.personas || []);
+        setPersonas(Array.isArray(data) ? data : data.creators || data.personas || []);
       })
       .catch(() => setError("Failed to reach Persona Engine"))
       .finally(() => setLoading(false));
@@ -29,16 +29,11 @@ export default function PersonasPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/inotion" className="text-zinc-500 hover:text-amber-400 transition">
-            <ArrowLeft size={20} />
-          </Link>
-          <h1 className="text-xl font-semibold tracking-tight">
-            <Users className="inline mr-2 text-amber-400" size={20} />
-            Persona Engine
-          </h1>
-        </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl font-semibold tracking-tight">
+          <Users className="inline mr-2 text-amber-400" size={20} />
+          Persona Engine
+        </h1>
         <Link
           href="/inotion/personas/board"
           className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/20 transition text-sm font-medium"

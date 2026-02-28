@@ -132,7 +132,7 @@ export async function queryBoard(
   perspectives: Array<{ member: string; response: string; source: string }>;
   consensus: string;
 }> {
-  // Query members sequentially (Ollama handles one request at a time on CPU)
+  // Query members sequentially (Ollama handles one request at a time on GPU)
   const results = [];
   for (const { profile, member } of profiles) {
     if (!profile) {

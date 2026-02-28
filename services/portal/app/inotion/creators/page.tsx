@@ -21,10 +21,7 @@ interface Creator {
   strategic_value?: "high" | "medium" | "low";
 }
 
-// Board of directors / priority creators (hardcoded top tier)
-const BOARD_CREATORS = [
-  "Alex Hormozi", "Naval Ravikant", "Sam Altman", "Lex Fridman", "Andrej Karpathy",
-];
+// Board of directors / priority creators — fetched dynamically in the component
 
 function CoverageBar({ pct }: { pct: number }) {
   return (
@@ -163,23 +160,33 @@ function CreatorCard({ creator, isBoard }: { creator: Creator; isBoard: boolean 
 
 export default function CreatorsPage() {
   const [creators, setCreators] = useState<Creator[]>([]);
+  const [boardNames, setBoardNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "subscribers" | "transcripts" | "coverage">("subscribers");
 
   useEffect(() => {
-    async function loadCreators() {
-      try {
-        const res = await fetch("/api/creators");
-        if (res.ok) {
-          const data = await res.json();
-          setCreators(data.creators ?? []);
-        }
-      } catch {}
+    async function loadData() {
+      const [creatorsRes, boardRes] = await Promise.allSettled([
+        fetch("/api/creators"),
+        fetch("/api/v1/board/members"),
+      ]);
+
+      if (creatorsRes.status === "fulfilled" && creatorsRes.value.ok) {
+        const data = await creatorsRes.value.json();
+        setCreators(data.creators ?? []);
+      }
+
+      if (boardRes.status === "fulfilled" && boardRes.value.ok) {
+        const data = await boardRes.value.json();
+        const names = (data.members ?? []).map((m: { name: string }) => m.name);
+        setBoardNames(names);
+      }
+
       setLoading(false);
     }
-    loadCreators();
+    loadData();
   }, []);
 
   const platforms = useMemo(() => {
@@ -218,8 +225,8 @@ export default function CreatorsPage() {
     return list;
   }, [creators, search, platformFilter, sortBy]);
 
-  const boardCreators = filteredCreators.filter((c) => BOARD_CREATORS.includes(c.name));
-  const regularCreators = filteredCreators.filter((c) => !BOARD_CREATORS.includes(c.name));
+  const boardCreators = filteredCreators.filter((c) => boardNames.includes(c.name));
+  const regularCreators = filteredCreators.filter((c) => !boardNames.includes(c.name));
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">

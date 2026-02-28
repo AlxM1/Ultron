@@ -25,33 +25,7 @@ interface Phase {
   taskCounts?: { total: number; done: number; inProgress: number; notStarted: number };
 }
 
-// Fallback: hardcoded milestone timeline
-const FALLBACK_MILESTONES = [
-  { title: "Platform Architecture", desc: "Docker stack: Cortex, AgentSmith, Portal, PostgreSQL", date: "Oct 2024", status: "done", category: "Infra" },
-  { title: "JARVIS Portal v1", desc: "Voice assistant, service launcher, JARVIS HUD interface", date: "Oct 2024", status: "done", category: "Portal" },
-  { title: "Content Intel Pipeline", desc: "Apify + YouTube Downloader + WhisperFlow transcription", date: "Nov 2024", status: "done", category: "Data" },
-  { title: "17 Autonomous Agents", desc: "Full cron agent roster operational 24/7", date: "Dec 2024", status: "done", category: "AI" },
-  { title: "INotion Knowledge Base", desc: "Outline integration with full portal dashboard", date: "Dec 2024", status: "done", category: "Knowledge" },
-  { title: "SSO Authentication", desc: "Authentik OIDC across all services", date: "Jan 2025", status: "done", category: "Security" },
-  { title: "00Raiser Portal Dashboard", desc: "Investor-quality portal with calendar, health panel, creator intelligence", date: "Feb 2025", status: "in-progress", category: "Portal" },
-  { title: "Creator Intelligence v2", desc: "Enhanced scoring, topic clustering, strategic value ratings", date: "Mar 2025", status: "upcoming", category: "AI" },
-  { title: "Cost Optimization Engine", desc: "Auto model routing: Sonnet for simple tasks, Opus for complex", date: "Apr 2025", status: "upcoming", category: "AI" },
-  { title: "World Mobile Technical Integration", desc: "Integration work begins with World Mobile team", date: "Jun 2025", status: "upcoming", category: "Business" },
-  { title: "Beta Platform Launch", desc: "Invite-only beta with first creator cohort", date: "Jul 2025", status: "upcoming", category: "Business" },
-  { title: "Revenue v1", desc: "First subscription tier live, payment processing", date: "Aug 2025", status: "upcoming", category: "Business" },
-  { title: "World Mobile Go-Live", desc: "Full production launch on World Mobile network", date: "Sep/Oct 2026", status: "upcoming", category: "Business", anchor: true },
-];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Infra: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
-  Portal: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
-  Data: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
-  Knowledge: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300",
-  AI: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
-  Security: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
-  Business: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300",
-  Other: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
-};
 
 export default function RoadmapPage() {
   const [phases, setPhases] = useState<Phase[] | null>(null);
@@ -193,48 +167,15 @@ export default function RoadmapPage() {
             })}
           </div>
         ) : (
-          // Fallback: simple timeline
-          <div className="relative">
-            <div className="absolute left-5 top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-800" />
-            <div className="space-y-3">
-              {FALLBACK_MILESTONES.map((m, i) => {
-                const isAnchor = (m as any).anchor;
-                const catColor = CATEGORY_COLORS[m.category] ?? CATEGORY_COLORS.Other;
-
-                return (
-                  <div key={i} className="relative flex gap-4 pl-12">
-                    <div className={`absolute left-2.5 top-4 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center bg-white dark:bg-zinc-950 ${
-                      m.status === "done" ? "text-emerald-500" :
-                      m.status === "in-progress" ? "text-blue-500" :
-                      "text-zinc-300 dark:text-zinc-600"
-                    }`}>
-                      {m.status === "done" ? <CheckCircle size={14} /> : m.status === "in-progress" ? <Zap size={14} /> : <Circle size={11} />}
-                    </div>
-                    <div className={`flex-1 bg-white dark:bg-zinc-900 rounded-xl border p-4 shadow-sm ${
-                      isAnchor ? "border-rose-300 dark:border-rose-800" :
-                      m.status === "in-progress" ? "border-blue-200 dark:border-blue-800/50" :
-                      "border-zinc-200 dark:border-zinc-800"
-                    }`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className={`text-sm font-semibold ${m.status === "done" ? "text-zinc-400 dark:text-zinc-500 line-through" : "text-zinc-800 dark:text-zinc-200"}`}>
-                              {m.title}
-                            </span>
-                            {isAnchor && <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 font-semibold uppercase tracking-wide">Anchor</span>}
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">{m.desc}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${catColor}`}>{m.category}</span>
-                          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{m.date}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          // Error state: API returned no data
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <div className="mb-3">
+              <Circle size={24} className="text-zinc-300 dark:text-zinc-600" />
             </div>
+            <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Roadmap unavailable</h3>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-sm">
+              Could not load roadmap data. Check that the roadmap API is running and try refreshing the page.
+            </p>
           </div>
         )}
       </main>

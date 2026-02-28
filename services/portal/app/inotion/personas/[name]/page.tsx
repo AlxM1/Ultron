@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Send, Loader2, MessageSquare, Quote } from "lucide-react";
+import { Send, Loader2, MessageSquare, Quote } from "lucide-react";
 
 interface Profile {
   name?: string;
@@ -35,7 +34,19 @@ export default function PersonaDetailPage() {
   useEffect(() => {
     fetch(`/api/personas/${encodeURIComponent(name)}/profile`)
       .then((r) => r.json())
-      .then((data) => setProfile(data))
+      .then((data) => {
+        // Normalize nested fields
+        if (data.vocabulary_patterns?.catchphrases && !data.catchphrases) {
+          data.catchphrases = data.vocabulary_patterns.catchphrases;
+        }
+        if (data.key_quotes && !data.top_quotes) {
+          data.top_quotes = data.key_quotes.slice(0, 10);
+        }
+        if (data.creator_name && !data.name) {
+          data.name = data.creator_name;
+        }
+        setProfile(data);
+      })
       .catch(() => setError("Failed to load profile"))
       .finally(() => setLoading(false));
   }, [name]);
@@ -63,14 +74,7 @@ export default function PersonaDetailPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="border-b border-zinc-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/inotion/personas" className="text-zinc-500 hover:text-amber-400 transition">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight">{name}</h1>
-      </div>
-
-      <div className="max-w-4xl mx-auto p-6 grid gap-6">
+      <div className="max-w-4xl mx-auto grid gap-4 sm:gap-6">
         {loading && <p className="text-zinc-500 animate-pulse">Loading profile...</p>}
         {error && <p className="text-rose-400">{error}</p>}
 
@@ -90,7 +94,11 @@ export default function PersonaDetailPage() {
               {profile.communication_style && (
                 <div className="mb-4">
                   <h3 className="text-xs uppercase tracking-wider text-zinc-500 mb-1">Communication Style</h3>
-                  <p className="text-zinc-300 text-sm">{profile.communication_style}</p>
+                  <p className="text-zinc-300 text-sm">
+                    {typeof profile.communication_style === "string"
+                      ? profile.communication_style
+                      : `Avg sentence length: ${(profile.communication_style as any).avg_sentence_length?.toFixed(1)} words | Vocabulary richness: ${((profile.communication_style as any).vocabulary_richness * 100)?.toFixed(1)}% | Question rate: ${((profile.communication_style as any).question_rate * 100)?.toFixed(1)}%`}
+                  </p>
                 </div>
               )}
               {profile.worldview && (
@@ -112,9 +120,15 @@ export default function PersonaDetailPage() {
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
                 <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">Top Topics</h3>
                 <div className="flex flex-wrap gap-2">
-                  {profile.top_topics.map((t) => (
-                    <span key={t} className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-lg text-sm">{t}</span>
-                  ))}
+                  {profile.top_topics.map((t: any, i: number) => {
+                    const label = typeof t === "string" ? t : t.topic || String(t);
+                    const count = typeof t === "object" && t.count ? t.count : null;
+                    return (
+                      <span key={i} className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-lg text-sm">
+                        {label}{count ? ` (${count})` : ""}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}

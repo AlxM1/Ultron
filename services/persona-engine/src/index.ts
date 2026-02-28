@@ -112,6 +112,99 @@ app.post('/api/persona/:creator_name/query', async (req, res) => {
   }
 });
 
+// Board of Directors members (dynamic metadata)
+app.get('/api/persona/board/members', async (_req, res) => {
+  try {
+    // Board config: who's on the board and their roles
+    const BOARD_CONFIG: Array<{ name: string; role: string; group: 'board' | 'advisor' | 'bonus' }> = [
+      { name: 'Elon Musk', role: 'CEO, Tesla & SpaceX', group: 'board' },
+      { name: 'Alex Hormozi', role: 'CEO, Acquisition.com', group: 'board' },
+      { name: 'Chamath Palihapitiya', role: 'CEO, Social Capital', group: 'board' },
+      { name: 'David Sacks', role: 'GP, Craft Ventures', group: 'board' },
+      { name: 'Jason Calacanis', role: 'Angel Investor, TWIST Host', group: 'board' },
+      { name: 'Jeff Bezos', role: 'Founder, Amazon & Blue Origin', group: 'board' },
+      { name: 'Lex Fridman', role: 'AI Researcher & Podcaster', group: 'board' },
+      { name: 'Sam Altman', role: 'CEO, OpenAI', group: 'board' },
+      { name: 'Jensen Huang', role: 'CEO, NVIDIA', group: 'board' },
+      { name: 'Balaji Srinivasan', role: 'Angel Investor & Author', group: 'board' },
+      { name: "Kevin O'Leary", role: 'Investor, Shark Tank', group: 'board' },
+      { name: 'Naval Ravikant', role: 'Co-founder, AngelList', group: 'advisor' },
+      { name: 'Patrick Bet-David', role: 'CEO, Valuetainment', group: 'advisor' },
+      { name: 'Pieter Levels', role: 'Indie Maker, Nomad List', group: 'advisor' },
+      { name: 'Greg Isenberg', role: 'CEO, Late Checkout', group: 'advisor' },
+      { name: 'Andrej Karpathy', role: 'AI Researcher, ex-Tesla', group: 'advisor' },
+      { name: 'Marc Andreessen', role: 'GP, a16z', group: 'advisor' },
+      { name: 'Gary Vaynerchuk', role: 'CEO, VaynerMedia', group: 'advisor' },
+      { name: 'Riley Brown', role: 'AI Builder & Creator', group: 'advisor' },
+      { name: 'Joe Rogan', role: 'Host, JRE', group: 'bonus' },
+    ];
+
+    // Get all creators and profiles in parallel
+    const [creators, profilesRes] = await Promise.all([
+      getAllCreators(),
+      pool.query('SELECT creator_name, profile_json, updated_at FROM personas'),
+    ]);
+    const creatorMap = new Map(creators.map(c => [c.name, c]));
+    const profileMap = new Map(profilesRes.rows.map((r: any) => [r.creator_name, { profile: r.profile_json, updated: r.updated_at }]));
+
+    const members = BOARD_CONFIG.map(cfg => {
+      const creator = creatorMap.get(cfg.name);
+      const profileData = profileMap.get(cfg.name);
+      const profile = profileData?.profile;
+      const hasVoice = hasVoiceProfile(cfg.name);
+
+      // Extract top 3 topics
+      const topics = (profile?.top_topics || [])
+        .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
+        .slice(0, 3)
+        .map((t: any) => t.topic || t);
+
+      // Communication style summary
+      const styleData = profile?.communication_style || {};
+      const richness = styleData.vocabulary_richness;
+      const qRate = styleData.question_rate;
+      const avgLen = styleData.avg_sentence_length;
+      let styleSummary = '';
+      if (richness > 0.2) styleSummary += 'Rich vocabulary, ';
+      else if (richness > 0.1) styleSummary += 'Moderate vocabulary, ';
+      if (qRate > 0.15) styleSummary += 'highly inquisitive, ';
+      else if (qRate > 0.08) styleSummary += 'conversational, ';
+      if (avgLen > 40) styleSummary += 'long-form';
+      else if (avgLen > 20) styleSummary += 'moderate pace';
+      else styleSummary += 'concise';
+      styleSummary = styleSummary.replace(/, $/, '');
+
+      // Catchphrases (filter out noise)
+      const rawCatchphrases = profile?.vocabulary_patterns?.catchphrases || [];
+      const catchphrases = rawCatchphrases
+        .filter((c: string) => c.length > 3 && !c.includes('nbsp') && !c.includes("there's there's"))
+        .slice(0, 3);
+
+      // Key quotes
+      const quotes = (profile?.key_quotes || []).slice(0, 2);
+
+      return {
+        name: cfg.name,
+        role: cfg.role,
+        group: cfg.group,
+        transcripts: creator?.transcript_count || 0,
+        contentCount: (creator as any)?.content_count || 0,
+        voice: hasVoice,
+        topics,
+        style: styleSummary,
+        catchphrases,
+        quotes,
+        profileUpdated: profileData?.updated || null,
+        totalWords: profile?.total_words || 0,
+      };
+    });
+
+    res.json({ members, total: members.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Board of Directors query
 app.post('/api/persona/board', async (req, res) => {
   try {

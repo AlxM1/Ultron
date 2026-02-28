@@ -848,6 +848,7 @@ services:
       OUTLINE_INTERNAL_URL: http://raiser-outline:3000
       NEXT_PUBLIC_OUTLINE_URL: https://inotion.00raiser.space
       PERSONA_URL: http://raiser-persona-pipeline:8500
+      PERSONA_ENGINE_URL: http://raiser-persona-engine:3017
       NEXT_PUBLIC_PICOVOICE_KEY: ${PICOVOICE_KEY:-}
       # Authentik OIDC SSO (NextAuth)
       NEXTAUTH_URL: "https://jarvis.00raiser.space"
@@ -940,14 +941,17 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3017'
-      DB_HOST: localhost
+      DB_HOST: raiser-postgres
       DB_PORT: '5432'
       DB_NAME: content_intel
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       OLLAMA_URL: http://10.25.10.60:11434
-      OLLAMA_MODEL: llama3.2:latest
-    network_mode: host
+      OLLAMA_MODEL: llama3.1:8b
+    networks:
+      - raiser-net
+    ports:
+      - "3017:3017"
     healthcheck:
       test:
       - CMD-SHELL
@@ -1486,6 +1490,35 @@ services:
       resources:
         limits:
           memory: 4g
+
+  comment-intel:
+    build:
+      context: ./services/comment-intel
+      dockerfile: Dockerfile
+    container_name: raiser-comment-intel
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: content_intel
+      PORT: "3019"
+    ports:
+    - 0.0.0.0:3019:3019
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+    - raiser-net
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
 volumes:
   postgres_data: null

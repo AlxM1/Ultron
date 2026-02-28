@@ -1,11 +1,18 @@
 import { Pool } from 'pg';
 
+const schema = process.env.DB_SCHEMA || 'public';
+
 export const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'seoh',
-  user: process.env.DB_USER || 'postgres',
+  database: process.env.DB_NAME || 'content_intel',
+  user: process.env.DB_USER || 'content_intel',
   password: process.env.DB_PASSWORD || '',
+});
+
+// Set search_path on each new connection
+pool.on('connect', (client) => {
+  client.query(`SET search_path TO ${schema}, public`);
 });
 
 export async function initDb(): Promise<void> {

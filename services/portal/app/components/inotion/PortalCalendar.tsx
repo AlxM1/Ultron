@@ -37,95 +37,57 @@ interface PortalCalendarProps {
   onJobClick?: (job: AgentJob) => void;
 }
 
-// ─── Color Category Mapping ──────────────────────────────────────────────────
+// ─── Schedule Category Colors ────────────────────────────────────────────────
 
-type ColorCategory = "monitoring" | "cron" | "pipeline" | "ai" | "maintenance";
+type ScheduleCategory = "always-running" | "daily" | "weekly" | "manual";
 
-const AGENT_COLOR_MAP: Record<string, ColorCategory> = {
-  "health-monitor": "monitoring",
-  "cortex-monitor": "monitoring",
-  "sauron": "monitoring",
-  "watchdog": "monitoring",
-  "supervisor": "monitoring",
-  "agentsmith-orchestrator": "monitoring",
-  "nightly-pipeline": "cron",
-  "daily-cost-report": "cron",
-  "daily-todo-report": "cron",
-  "weekly-data-retention": "cron",
-  "data-retention-dry-run": "cron",
-  "self-audit": "cron",
-  "replicator": "cron",
-  "inotion-sync": "cron",
-  "youtube-scraper": "pipeline",
-  "content-intel": "pipeline",
-  "batch-captions": "pipeline",
-  "creator-intelligence": "pipeline",
-  "persona-pipeline": "ai",
-  "scorpion": "ai",
-  "brain-sync": "ai",
-  "backup-system": "maintenance",
-  "cost-tracker": "maintenance",
-  "newsletter-pipeline": "pipeline",
-  // Additional agents from current roster
-  "memory-consolidation": "ai",
-  "content-scraper": "pipeline",
-  "youtube-downloader": "pipeline",
-  "transcript-processor": "pipeline",
-  "security-audit": "ai",
-  "performance-metrics": "cron",
-  "roadmap-updates": "cron",
-  "content-intel-weekly": "pipeline",
-};
-
-function getColorCategory(agent: AgentJob): ColorCategory {
-  return AGENT_COLOR_MAP[agent.id] ?? "cron";
+function getScheduleCategory(agent: AgentJob): ScheduleCategory {
+  const cat = agent.category as ScheduleCategory;
+  if (cat === "always-running" || cat === "daily" || cat === "weekly" || cat === "manual") return cat;
+  return "manual";
 }
-
-// ─── Color Palette ───────────────────────────────────────────────────────────
 
 interface CategoryStyle {
   label: string;
-  dot: string;        // light mode hex
-  dotDark: string;    // dark mode hex
+  dot: string;
+  dotDark: string;
   pillBg: string;
+  pillBorder: string;
   pillText: string;
 }
 
-const COLOR_CATEGORIES: Record<ColorCategory, CategoryStyle> = {
-  cron: {
-    label: "Cron Jobs",
-    dot: "#F59E0B",
-    dotDark: "#FBBF24",
-    pillBg: "bg-amber-50 dark:bg-amber-900/20",
-    pillText: "text-amber-700 dark:text-amber-300",
-  },
-  monitoring: {
-    label: "Monitoring",
+const COLOR_CATEGORIES: Record<ScheduleCategory, CategoryStyle> = {
+  "always-running": {
+    label: "Always Running",
     dot: "#3B82F6",
     dotDark: "#60A5FA",
-    pillBg: "bg-blue-50 dark:bg-blue-900/20",
-    pillText: "text-blue-700 dark:text-blue-300",
+    pillBg: "bg-blue-500/15",
+    pillBorder: "border-blue-500/30",
+    pillText: "text-blue-400",
   },
-  pipeline: {
-    label: "Content Pipeline",
+  daily: {
+    label: "Daily",
     dot: "#10B981",
     dotDark: "#34D399",
-    pillBg: "bg-emerald-50 dark:bg-emerald-900/20",
-    pillText: "text-emerald-700 dark:text-emerald-300",
+    pillBg: "bg-emerald-500/15",
+    pillBorder: "border-emerald-500/30",
+    pillText: "text-emerald-400",
   },
-  ai: {
-    label: "AI / Analysis",
+  weekly: {
+    label: "Weekly",
     dot: "#8B5CF6",
     dotDark: "#A78BFA",
-    pillBg: "bg-violet-50 dark:bg-violet-900/20",
-    pillText: "text-violet-700 dark:text-violet-300",
+    pillBg: "bg-violet-500/15",
+    pillBorder: "border-violet-500/30",
+    pillText: "text-violet-400",
   },
-  maintenance: {
-    label: "Maintenance",
-    dot: "#F43F5E",
-    dotDark: "#FB7185",
-    pillBg: "bg-rose-50 dark:bg-rose-900/20",
-    pillText: "text-rose-700 dark:text-rose-300",
+  manual: {
+    label: "Manual",
+    dot: "#71717A",
+    dotDark: "#A1A1AA",
+    pillBg: "bg-zinc-500/15",
+    pillBorder: "border-zinc-500/30",
+    pillText: "text-zinc-400",
   },
 };
 
@@ -220,7 +182,7 @@ interface DotProps {
 }
 
 function AgentDot({ agent, isDark, onHover, onLeave, onClick }: DotProps) {
-  const cat = getColorCategory(agent);
+  const cat = getScheduleCategory(agent);
   const style = COLOR_CATEGORIES[cat];
   const color = isDark ? style.dotDark : style.dot;
 
@@ -248,7 +210,7 @@ interface TooltipData {
 }
 
 function AgentTooltip({ data }: { data: TooltipData }) {
-  const cat = getColorCategory(data.agent);
+  const cat = getScheduleCategory(data.agent);
   const style = COLOR_CATEGORIES[cat];
   const schedule = getScheduleLabel(data.agent);
 
@@ -287,7 +249,7 @@ interface BubbleData {
 
 function ZoomBubble({ data, onClose }: { data: BubbleData; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const cat = getColorCategory(data.agent);
+  const cat = getScheduleCategory(data.agent);
   const style = COLOR_CATEGORIES[cat];
   const schedule = getScheduleLabel(data.agent);
   const wikiUrl = `https://inotion.00raiser.space/search/${encodeURIComponent(data.agent.name)}`;
@@ -398,7 +360,7 @@ function MonthView({
 }: {
   month: Date;
   agents: AgentJob[];
-  activeFilter: ColorCategory | null;
+  activeFilter: ScheduleCategory | null;
 }) {
   const isDark = useIsDark();
   const monthStart = startOfMonth(month);
@@ -418,7 +380,7 @@ function MonthView({
 
   const filteredAgents = useMemo(() => {
     if (!activeFilter) return agents;
-    return agents.filter((a) => getColorCategory(a) === activeFilter);
+    return agents.filter((a) => getScheduleCategory(a) === activeFilter);
   }, [agents, activeFilter]);
 
   const DOW_HEADERS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -516,42 +478,69 @@ function MonthView({
                 </div>
               )}
 
-              {/* Scheduled agent event cards — Digital Calendar style */}
-              {inMonth && visible.length > 0 && (
-                <div className="space-y-1.5">
-                  {visible.map((agent) => {
-                    const cat = getColorCategory(agent);
-                    const style = COLOR_CATEGORIES[cat];
-                    const time = getTimeLabel(agent);
-                    const recurring = isRecurring(agent);
+              {/* Scheduled agent event cards — consolidated by time slot */}
+              {inMonth && sorted.length > 0 && (
+                <div className="space-y-1">
+                  {(() => {
+                    const hourGroups = new Map<number, AgentJob[]>();
+                    sorted.forEach((agent) => {
+                      const hour = getRunHour(agent);
+                      if (!hourGroups.has(hour)) hourGroups.set(hour, []);
+                      hourGroups.get(hour)!.push(agent);
+                    });
+
+                    const sortedKeys = [...hourGroups.keys()].sort((a, b) => {
+                      if (a === -1) return 1;
+                      if (b === -1) return -1;
+                      return a - b;
+                    });
+
+                    const maxSlots = 4;
+                    const visibleKeys = sortedKeys.slice(0, maxSlots);
+                    const overflowCount = sortedKeys.length - maxSlots;
 
                     return (
-                      <button
-                        key={agent.id}
-                        onClick={(e) => handleAgentClick(e, agent)}
-                        className={`w-full text-left px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-150 hover:brightness-95 dark:hover:brightness-110 ${style.pillBg}`}
-                      >
-                        {/* Agent name + recurring icon */}
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[11px] font-semibold truncate flex-1 ${style.pillText}`}>
-                            {recurring && <span className="mr-0.5">↻</span>}
-                            {agent.name}
-                          </span>
-                        </div>
-                        {/* Time */}
-                        {time && (
-                          <div className={`text-[9px] mt-0.5 opacity-70 ${style.pillText}`}>
-                            {time}
+                      <>
+                        {visibleKeys.map((hour) => {
+                          const group = hourGroups.get(hour)!;
+                          let timeLabel = "Always";
+                          if (hour >= 0) {
+                            const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                            const ampm = hour >= 12 ? "p" : "a";
+                            timeLabel = `${h12}${ampm}`;
+                          }
+
+                          return (
+                            <div key={hour} className="px-1">
+                              <div className="text-[8px] font-mono text-zinc-300 dark:text-zinc-600 mb-0.5">
+                                {timeLabel}
+                              </div>
+                              <div className="flex flex-wrap gap-0.5">
+                                {group.map((agent) => {
+                                  const cat = getScheduleCategory(agent);
+                                  const catStyle = COLOR_CATEGORIES[cat];
+                                  return (
+                                    <button
+                                      key={agent.id}
+                                      onClick={(e) => handleAgentClick(e, agent)}
+                                      className={`inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-medium border cursor-pointer transition-all hover:brightness-90 dark:hover:brightness-125 truncate max-w-full ${catStyle.pillBg} ${catStyle.pillBorder} ${catStyle.pillText}`}
+                                    >
+                                      <span className="truncate">{agent.name}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {overflowCount > 0 && (
+                          <div className="text-[9px] text-zinc-400 dark:text-zinc-500 pl-1 font-medium">
+                            +{overflowCount} slots
                           </div>
                         )}
-                      </button>
+                      </>
                     );
-                  })}
-                  {overflow > 0 && (
-                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 pl-1 font-medium">
-                      +{overflow} more
-                    </div>
-                  )}
+                  })()}
                 </div>
               )}
             </div>
@@ -571,7 +560,7 @@ function WeekView({
 }: {
   weekStart: Date;
   agents: AgentJob[];
-  activeFilter: ColorCategory | null;
+  activeFilter: ScheduleCategory | null;
 }) {
   const isDark = useIsDark();
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -596,7 +585,7 @@ function WeekView({
 
   const filteredAgents = useMemo(() => {
     if (!activeFilter) return agents;
-    return agents.filter((a) => getColorCategory(a) === activeFilter);
+    return agents.filter((a) => getScheduleCategory(a) === activeFilter);
   }, [agents, activeFilter]);
 
   return (
@@ -634,46 +623,65 @@ function WeekView({
                 </div>
               </div>
 
-              {/* Agent cards — pastel style matching month view */}
+              {/* Agent cards — consolidated by time slot */}
               <div className="space-y-1.5">
-                {dayAgents.map((agent) => {
-                  const cat = getColorCategory(agent);
-                  const catStyle = COLOR_CATEGORIES[cat];
-                  const hour = getRunHour(agent);
-                  const recurring = agent.category === "always-running" || agent.category === "daily";
-                  // Format time label
-                  let timeLabel = "";
-                  if (hour >= 0) {
-                    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                    const ampm = hour >= 12 ? "PM" : "AM";
-                    const min = agent.schedule.split(" ")[0];
-                    const m = min.startsWith("*/") ? "00" : (parseInt(min) || 0).toString().padStart(2, "0");
-                    timeLabel = `${h12}:${m} ${ampm}`;
-                  }
+                {(() => {
+                  // Group agents by hour
+                  const hourGroups = new Map<number, AgentJob[]>();
+                  dayAgents.forEach((agent) => {
+                    const hour = getRunHour(agent);
+                    const key = hour; // -1 = all-day/continuous
+                    if (!hourGroups.has(key)) hourGroups.set(key, []);
+                    hourGroups.get(key)!.push(agent);
+                  });
 
-                  return (
-                    <button
-                      key={agent.id}
-                      onClick={(e) => {
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        setBubble({ agent, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-                      }}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg cursor-pointer transition-all duration-150 hover:brightness-95 dark:hover:brightness-110 ${catStyle.pillBg}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-semibold truncate flex-1 ${catStyle.pillText}`}>
-                          {recurring && <span className="mr-0.5">↻</span>}
-                          {agent.name}
-                        </span>
-                      </div>
-                      {timeLabel && (
-                        <div className={`text-[9px] mt-0.5 opacity-70 ${catStyle.pillText}`}>
+                  // Sort by hour ascending, -1 (all-day) last
+                  const sortedKeys = [...hourGroups.keys()].sort((a, b) => {
+                    if (a === -1) return 1;
+                    if (b === -1) return -1;
+                    return a - b;
+                  });
+
+                  return sortedKeys.map((hour) => {
+                    const group = hourGroups.get(hour)!;
+                    // Format time label
+                    let timeLabel = "Always";
+                    if (hour >= 0) {
+                      const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                      const ampm = hour >= 12 ? "PM" : "AM";
+                      timeLabel = `${h12}:00 ${ampm}`;
+                    }
+
+                    return (
+                      <div
+                        key={hour}
+                        className="rounded-lg border border-zinc-200/50 dark:border-zinc-700/50 bg-zinc-50/50 dark:bg-zinc-900/50 p-1.5"
+                      >
+                        <div className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 mb-1 px-0.5">
                           {timeLabel}
                         </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        <div className="flex flex-wrap gap-1">
+                          {group.map((agent) => {
+                            const cat = getScheduleCategory(agent);
+                            const catStyle = COLOR_CATEGORIES[cat];
+                            return (
+                              <button
+                                key={agent.id}
+                                onClick={(e) => {
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  setBubble({ agent, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                                }}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all duration-150 hover:brightness-90 dark:hover:brightness-125 ${catStyle.pillBg} ${catStyle.pillBorder} ${catStyle.pillText}`}
+                              >
+                                {agent.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           );
@@ -691,8 +699,8 @@ function LegendPanel({
   onFilterToggle,
 }: {
   agents: AgentJob[];
-  activeFilter: ColorCategory | null;
-  onFilterToggle: (cat: ColorCategory) => void;
+  activeFilter: ScheduleCategory | null;
+  onFilterToggle: (cat: ScheduleCategory) => void;
 }) {
   const isDark = useIsDark();
 
@@ -702,9 +710,10 @@ function LegendPanel({
         Agent Categories
       </h3>
       <div className="space-y-2.5">
-        {(Object.entries(COLOR_CATEGORIES) as [ColorCategory, CategoryStyle][]).map(
+        {(Object.entries(COLOR_CATEGORIES) as [ScheduleCategory, CategoryStyle][]).map(
           ([key, style]) => {
-            const count = agents.filter((a) => getColorCategory(a) === key).length;
+            const count = agents.filter((a) => getScheduleCategory(a) === key).length;
+            if (count === 0) return null;
             const isActive = activeFilter === key;
             const color = isDark ? style.dotDark : style.dot;
 
@@ -768,7 +777,7 @@ export default function PortalCalendar({
 }: PortalCalendarProps) {
   const [view, setView] = useState<"weekly" | "monthly">("weekly");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeFilter, setActiveFilter] = useState<ColorCategory | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ScheduleCategory | null>(null);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
 
@@ -797,7 +806,7 @@ export default function PortalCalendar({
     return format(currentDate, "MMMM yyyy").toUpperCase();
   }, [view, currentDate, weekStart]);
 
-  const handleFilterToggle = useCallback((cat: ColorCategory) => {
+  const handleFilterToggle = useCallback((cat: ScheduleCategory) => {
     setActiveFilter((prev) => (prev === cat ? null : cat));
   }, []);
 

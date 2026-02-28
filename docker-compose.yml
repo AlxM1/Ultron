@@ -373,8 +373,8 @@ services:
       DB_PORT: '5432'
       DB_USER: krya
       DB_PASSWORD: ${KRYA_DB_PASSWORD}
-      DB_NAME: krya
-      DATABASE_URL: postgresql://krya:${KRYA_DB_PASSWORD}@postgres:5432/krya
+      DB_NAME: raiser
+      DATABASE_URL: postgresql://krya:${KRYA_DB_PASSWORD}@postgres:5432/raiser
       REDIS_HOST: redis
       REDIS_PORT: '6379'
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -444,7 +444,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: '8000'
-      DATABASE_URL: postgresql+asyncpg://scraper:${SCRAPER_DB_PASSWORD}@postgres:5432/scraper
+      DATABASE_URL: postgresql+asyncpg://scraper:${SCRAPER_DB_PASSWORD}@postgres:5432/content_intel
       REDIS_HOST: redis
       REDIS_PORT: '6379'
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -502,7 +502,7 @@ services:
       SECRET_KEY: ${VOICEFORGE_SECRET_KEY}
       HOST: 0.0.0.0
       PORT: 8000
-      DATABASE_URL: postgresql+asyncpg://voiceforge:${VOICEFORGE_DB_PASSWORD}@postgres:5432/voiceforge
+      DATABASE_URL: postgresql+asyncpg://voiceforge:${VOICEFORGE_DB_PASSWORD}@postgres:5432/raiser
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -982,9 +982,10 @@ services:
       PORT: '3016'
       DB_HOST: postgres
       DB_PORT: '5432'
-      DB_NAME: seoh
+      DB_NAME: content_intel
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SCHEMA: seoh
       CRAWLEE_API_KEY: '292b413d4d76ba266090d8c17a2ef1668c274e940e89c452'
       SEARXNG_URL: http://raiser-searxng:8080
     ports:

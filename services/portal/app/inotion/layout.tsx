@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map,
-  BarChart3, Brain, UserCircle,
-  MessageSquare, Menu, X,
+  UserCircle, Server,
+  MessageSquare, Menu, X, TrendingUp,
 } from "lucide-react";
 import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
@@ -15,15 +15,15 @@ import GlobalSearch from "../components/inotion/GlobalSearch";
 const NAV_ITEMS = [
   { href: "/inotion", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inotion/creators", label: "Creators", icon: Users },
-  { href: "/inotion/creators/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/inotion/agents", label: "Agents", icon: Calendar },
   { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/inotion/costs", label: "Costs", icon: DollarSign },
   { href: "/inotion/roadmap", label: "Roadmap", icon: Map },
   { href: "/inotion/comments", label: "Comments", icon: MessageSquare },
+  { href: "/inotion/comments/sentiment", label: "Sentiment", icon: TrendingUp },
 
+  { href: "/inotion/infrastructure", label: "Infrastructure", icon: Server },
   { href: "/inotion/personas", label: "Personas", icon: UserCircle },
-  { href: "/inotion/personas/board", label: "Board", icon: Brain },
 ];
 
 function LayoutInner({ children }: { children: React.ReactNode }) {

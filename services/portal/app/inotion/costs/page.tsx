@@ -1,25 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import {
-  LayoutDashboard, Users, Calendar, BookOpen,
-  DollarSign, Map, ChevronUp, ChevronDown, ChevronsUpDown,
+  DollarSign, Map, BookOpen,
+  ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
-import ThemeToggle from "../../components/inotion/ThemeToggle";
-import GlobalSearch from "../../components/inotion/GlobalSearch";
-
-// ─── Nav ─────────────────────────────────────────────────────────────────────
-
-const NAV_ITEMS = [
-  { href: "/inotion",           label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inotion/creators",  label: "Creators",  icon: Users           },
-  { href: "/inotion/agents",    label: "Agents",    icon: Calendar        },
-  { href: "/inotion/knowledge", label: "Knowledge", icon: BookOpen        },
-  { href: "/inotion/costs",     label: "Costs",     icon: DollarSign      },
-  { href: "/inotion/roadmap",   label: "Roadmap",   icon: Map             },
-];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -591,7 +576,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CostsPage() {
-  const pathname  = usePathname();
   const [data, setData]       = useState<CostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -616,55 +600,7 @@ export default function CostsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-screen-2xl mx-auto px-6">
-          <div className="h-14 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2.5">
-                <a href="/" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
-                  Portal
-                </a>
-                <span className="text-zinc-200 dark:text-zinc-700">/</span>
-                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                  00Raiser HQ
-                </span>
-              </div>
-
-              <nav className="hidden lg:flex items-center gap-1">
-                {NAV_ITEMS.map(item => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        isActive
-                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
-                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      }`}
-                    >
-                      <Icon size={12} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <GlobalSearch />
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Main ───────────────────────────────────────────────────────────── */}
-      <main className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8">
+    <div className="space-y-8">
 
         {/* Page title */}
         <div>
@@ -773,15 +709,6 @@ export default function CostsPage() {
           </>
         )}
 
-      </main>
-
-      {/* Footer */}
-      <footer className="max-w-screen-2xl mx-auto px-6 py-6 mt-8 border-t border-zinc-200 dark:border-zinc-800">
-        <div className="flex items-center justify-between text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
-          <span>00Raiser Platform — Autonomous AI Operations</span>
-          <span>Target: World Mobile go-live Sept/Oct 2026</span>
-        </div>
-      </footer>
     </div>
   );
 }

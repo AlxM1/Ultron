@@ -190,6 +190,28 @@ export const AGENTS = [
     activeSince: "2026-02-01",
     description: "One-time intervention reminder — expired. Kept for audit trail.",
   },
+  {
+    id: "reddit-scraper",
+    name: "Reddit Scraper",
+    role: "Reddit keyword + subreddit + board member scraper",
+    schedule: "0 */6 * * *",
+    scheduleDesc: "Every 6 hours",
+    category: "always-running",
+    model: "script",
+    activeSince: "2026-02-28",
+    description: "Scrapes 19 keywords, 13 subreddits, and 20 board member mentions from Reddit public JSON endpoints. Stores in reddit_posts table.",
+  },
+  {
+    id: "x-scraper",
+    name: "X/Twitter Scraper",
+    role: "Twitter content scraper for all board members",
+    schedule: "30 */6 * * *",
+    scheduleDesc: "Every 6 hours (offset 30m)",
+    category: "always-running",
+    model: "script",
+    activeSince: "2026-02-28",
+    description: "Scrapes tweets from all board member X accounts using guest token GraphQL. Stores in x_posts table.",
+  },
 ];
 
 // Simple cron parser: returns array of hours (0-23) on which the job runs for a given day

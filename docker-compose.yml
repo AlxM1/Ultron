@@ -896,7 +896,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3015'
-      DATABASE_URL: postgresql://content_intel:${CONTENT_INTEL_DB_PASSWORD}@postgres:5432/raiser
+      DATABASE_URL: postgresql://content_intel:${CONTENT_INTEL_DB_PASSWORD}@postgres:5432/content_intel
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
       APIFY_SCRAPER_URL: http://raiser-apify:8000
       CORTEX_INTERNAL_URL: http://raiser-cortex:3011

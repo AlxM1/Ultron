@@ -17,7 +17,8 @@ HANDLES = [
     "JeffBezos",
     "lexfridman",
     "sama",          # Sam Altman
-    # Jensen Huang - no personal Twitter, search-based
+    "Jensen_Huang",     # Jensen Huang - NVIDIA
+    "karpathy",         # Andrej Karpathy
     "balajis",          # Balaji Srinivasan
     "naval",
     "PatrickBetDavid",
@@ -29,4 +30,4 @@ HANDLES = [
     "rileyybrown",
 ]
 
-TWEETS_PER_USER = 20
+TWEETS_PER_USER = 500

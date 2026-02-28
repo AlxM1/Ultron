@@ -23,6 +23,7 @@ SUBREDDITS = [
     "artificial", "MachineLearning", "LocalLLaMA", "ChatGPT", "OpenAI",
     "nvidia", "startups", "Entrepreneur", "SaaS", "singularity",
     "StableDiffusion", "selfhosted", "ArtificialIntelligence",
+    "venturecapital", "digitalnomad", "sidehustle", "Futurology",
 ]
 BOARD_MEMBERS = [
     "Elon Musk", "Alex Hormozi", "Chamath Palihapitiya", "David Sacks",
@@ -104,6 +105,16 @@ def store_posts(conn, posts):
     """Upsert posts into DB."""
     if not posts:
         return 0
+    # Deduplicate by reddit_id (first element) within batch
+    seen = set()
+    unique = []
+    for p in posts:
+        if p[0] not in seen:
+            seen.add(p[0])
+            unique.append(p)
+    posts = unique
+    if not posts:
+        return 0
     with conn.cursor() as cur:
         execute_values(cur, """
             INSERT INTO reddit_posts (reddit_id, subreddit, title, body, author, score, num_comments, url, permalink, created_utc, search_keyword)
@@ -118,24 +129,39 @@ def store_posts(conn, posts):
     return len(posts)
 
 
-def search_keyword(keyword, limit=25):
-    """Search Reddit for a keyword, top posts from last week."""
+def search_keyword(keyword, limit=100):
+    """Search Reddit for a keyword across all time."""
     url = "https://www.reddit.com/search.json"
-    params = {"q": keyword, "sort": "top", "t": "week", "limit": limit}
-    print(f"[keyword] Searching: {keyword}")
-    time.sleep(DELAY)
-    data = fetch_json(url, params)
-    return parse_posts(data, keyword=keyword)
+    all_posts = []
+    for sort in ["relevance", "top"]:
+        params = {"q": keyword, "sort": sort, "t": "all", "limit": limit}
+        print(f"[keyword] Searching: {keyword} (sort={sort})")
+        time.sleep(DELAY)
+        data = fetch_json(url, params)
+        all_posts.extend(parse_posts(data, keyword=keyword))
+    return all_posts
 
 
-def scrape_subreddit(sub, limit=25):
-    """Scrape top posts from a subreddit for last week."""
-    url = f"https://www.reddit.com/r/{sub}/top.json"
-    params = {"t": "week", "limit": limit}
-    print(f"[subreddit] Scraping: r/{sub}")
-    time.sleep(DELAY)
-    data = fetch_json(url, params)
-    return parse_posts(data, keyword=f"r/{sub}")
+def scrape_subreddit(sub, limit=100):
+    """Scrape top posts from a subreddit across all time periods, plus hot and new."""
+    all_posts = []
+    # Top posts for each time period
+    for period in ["hour", "day", "week", "month", "year", "all"]:
+        url = f"https://www.reddit.com/r/{sub}/top.json"
+        params = {"t": period, "limit": limit}
+        print(f"[subreddit] r/{sub} top/{period} (limit={limit})")
+        time.sleep(DELAY)
+        data = fetch_json(url, params)
+        all_posts.extend(parse_posts(data, keyword=f"r/{sub}"))
+    # Hot and new
+    for listing in ["hot", "new"]:
+        url = f"https://www.reddit.com/r/{sub}/{listing}.json"
+        params = {"limit": 25}
+        print(f"[subreddit] r/{sub} {listing}")
+        time.sleep(DELAY)
+        data = fetch_json(url, params)
+        all_posts.extend(parse_posts(data, keyword=f"r/{sub}"))
+    return all_posts
 
 
 def search_board_member(name):

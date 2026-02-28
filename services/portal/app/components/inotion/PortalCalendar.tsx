@@ -488,6 +488,127 @@ function MonthView({
   );
 }
 
+// ─── Day View ────────────────────────────────────────────────────────────────
+
+function DayView({
+  date,
+  agents,
+  activeFilter,
+}: {
+  date: Date;
+  agents: AgentJob[];
+  activeFilter: ScheduleCategory | null;
+}) {
+  const isDark = useIsDark();
+  const [bubble, setBubble] = useState<BubbleData | null>(null);
+
+  const filteredAgents = useMemo(() => {
+    const base = activeFilter ? agents.filter((a) => getScheduleCategory(a) === activeFilter) : agents;
+    return base.filter((a) => agentRunsOnDay(a, date));
+  }, [agents, activeFilter, date]);
+
+  const alwaysRunning = filteredAgents.filter((a) => a.category === "always-running");
+  const scheduled = filteredAgents.filter((a) => a.category !== "always-running");
+
+  const closeBubble = useCallback(() => setBubble(null), []);
+
+  function getNextRun(agent: AgentJob): string {
+    const parts = agent.schedule.split(" ");
+    const minute = parts[0] === "*" ? 0 : parseInt(parts[0]) || 0;
+    const hour = parts[1] === "*" ? null : parseInt(parts[1]);
+    if (hour !== null) {
+      const h = hour.toString().padStart(2, "0");
+      const m = minute.toString().padStart(2, "0");
+      return `${h}:${m}`;
+    }
+    if (parts[0].startsWith("*/")) {
+      const interval = parseInt(parts[0].slice(2));
+      return `Every ${interval}m`;
+    }
+    return agent.scheduleDesc || agent.schedule;
+  }
+
+  return (
+    <>
+      {bubble && <AgentBubble data={bubble} isDark={isDark} onClose={closeBubble} />}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {format(date, "EEEE, MMMM d")}
+          </p>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mt-0.5">
+            {filteredAgents.length} agent{filteredAgents.length !== 1 ? "s" : ""} scheduled
+          </p>
+        </div>
+
+        {/* Always running */}
+        {alwaysRunning.length > 0 && (
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+            <p className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-600 font-medium mb-2">Always Running</p>
+            <div className="space-y-2">
+              {alwaysRunning.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={(e) => {
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    setBubble({ agent, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900"
+                    style={{ backgroundColor: getAgentColor(agent.name, isDark), ringColor: getAgentColor(agent.name, isDark) }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">{agent.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-600">{agent.role || getNextRun(agent)}</p>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono flex-shrink-0">{getNextRun(agent)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Scheduled */}
+        {scheduled.length > 0 && (
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-600 font-medium mb-2">Scheduled</p>
+            <div className="space-y-2">
+              {scheduled.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={(e) => {
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    setBubble({ agent, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: getAgentColor(agent.name, isDark) }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">{agent.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-600">{agent.role || agent.scheduleDesc}</p>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono flex-shrink-0">{getNextRun(agent)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {filteredAgents.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-zinc-400 dark:text-zinc-600">No agents scheduled for this day</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Week View ───────────────────────────────────────────────────────────────
 
 function WeekView({
@@ -726,19 +847,24 @@ export default function PortalCalendar({
   agents,
   onJobClick,
 }: PortalCalendarProps) {
-  const [view, setView] = useState<"weekly" | "monthly">("weekly");
+  const [view, setView] = useState<"daily" | "weekly" | "monthly">(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 640) return "daily";
+    return "weekly";
+  });
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeFilter, setActiveFilter] = useState<ScheduleCategory | null>(null);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
 
   function prev() {
-    if (view === "weekly") setCurrentDate(subWeeks(currentDate, 1));
+    if (view === "daily") setCurrentDate(addDays(currentDate, -1));
+    else if (view === "weekly") setCurrentDate(subWeeks(currentDate, 1));
     else setCurrentDate(subMonths(currentDate, 1));
   }
 
   function next() {
-    if (view === "weekly") setCurrentDate(addWeeks(currentDate, 1));
+    if (view === "daily") setCurrentDate(addDays(currentDate, 1));
+    else if (view === "weekly") setCurrentDate(addWeeks(currentDate, 1));
     else setCurrentDate(addMonths(currentDate, 1));
   }
 
@@ -747,6 +873,9 @@ export default function PortalCalendar({
   }
 
   const periodLabel = useMemo(() => {
+    if (view === "daily") {
+      return format(currentDate, "EEEE, MMMM d, yyyy");
+    }
     if (view === "weekly") {
       const end = addDays(weekStart, 6);
       if (weekStart.getMonth() === end.getMonth()) {
@@ -796,7 +925,7 @@ export default function PortalCalendar({
         <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
           <button
             onClick={() => setView("monthly")}
-            className={`text-xs px-3 py-1.5 transition-all duration-200 font-medium ${
+            className={`text-xs px-3 py-1.5 transition-all duration-200 font-medium hidden sm:block ${
               view === "monthly"
                 ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
                 : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
@@ -806,7 +935,7 @@ export default function PortalCalendar({
           </button>
           <button
             onClick={() => setView("weekly")}
-            className={`text-xs px-3 py-1.5 transition-all duration-200 border-l border-zinc-200 dark:border-zinc-700 font-medium ${
+            className={`text-xs px-3 py-1.5 transition-all duration-200 border-l sm:border-l border-zinc-200 dark:border-zinc-700 font-medium hidden sm:block ${
               view === "weekly"
                 ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
                 : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
@@ -814,13 +943,29 @@ export default function PortalCalendar({
           >
             Week
           </button>
+          <button
+            onClick={() => setView("daily")}
+            className={`text-xs px-3 py-1.5 transition-all duration-200 border-l border-zinc-200 dark:border-zinc-700 font-medium ${
+              view === "daily"
+                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Day
+          </button>
         </div>
       </div>
 
       {/* Calendar + Legend layout */}
       <div className="flex gap-5">
         <div className="flex-1 min-w-0">
-          {view === "weekly" ? (
+          {view === "daily" ? (
+            <DayView
+              date={currentDate}
+              agents={agents}
+              activeFilter={activeFilter}
+            />
+          ) : view === "weekly" ? (
             <WeekView
               weekStart={weekStart}
               agents={agents}

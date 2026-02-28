@@ -51,6 +51,15 @@ FEATURES = {
 }
 
 
+BOARD_MEMBERS = [
+    "Elon Musk", "Alex Hormozi", "Chamath Palihapitiya", "David Sacks",
+    "Jason Calacanis", "Jeff Bezos", "Lex Fridman", "Sam Altman",
+    "Jensen Huang", "Balaji Srinivasan", "Kevin O'Leary", "Naval Ravikant",
+    "Patrick Bet-David", "Pieter Levels", "Greg Isenberg", "Andrej Karpathy",
+    "Marc Andreessen", "Gary Vaynerchuk", "Riley Brown", "Joe Rogan",
+]
+
+
 class TwitterScraper:
     def __init__(self):
         self.client = httpx.Client(timeout=15, follow_redirects=True)
@@ -206,6 +215,39 @@ class TwitterScraper:
             "search_keyword": None,
         }
 
+    def search_tweets(self, query: str, count: int = 50) -> list[dict]:
+        """Search for tweets matching a query string."""
+        try:
+            data = self._graphql_get("gkjsKepM6gl_HmFWoWKfgg/SearchTimeline", {
+                "rawQuery": query,
+                "count": count,
+                "querySource": "typed_query",
+                "product": "Latest",
+            })
+        except Exception as e:
+            print(f"  Search failed for '{query}': {e}")
+            return []
+
+        tweets = []
+        instructions = (
+            data.get("data", {})
+            .get("search_by_raw_query", {})
+            .get("search_timeline", {})
+            .get("timeline", {})
+            .get("instructions", [])
+        )
+
+        for inst in instructions:
+            if inst.get("type") != "TimelineAddEntries":
+                continue
+            for entry in inst.get("entries", []):
+                tweet = self._extract_tweet(entry, "search")
+                if tweet:
+                    tweet["search_keyword"] = query
+                    tweets.append(tweet)
+
+        return tweets[:count]
+
 
 def upsert_tweets(tweets: list[dict]) -> int:
     if not tweets:
@@ -269,10 +311,25 @@ def main():
 
         time.sleep(1.5)  # Rate limit
 
+    # --- Board member name search ---
+    print(f"\n--- Board Member Search ---")
+    for name in BOARD_MEMBERS:
+        print(f"  Searching for '{name}'...")
+        search_tweets = scraper.search_tweets(f'"{name}"', count=50)
+        if search_tweets:
+            n = upsert_tweets(search_tweets)
+            total += n
+            results[f"search:{name}"] = f"OK: {len(search_tweets)} results, {n} upserted"
+            print(f"    {len(search_tweets)} results, {n} upserted")
+        else:
+            results[f"search:{name}"] = "No results"
+            print(f"    No results")
+        time.sleep(2)  # Rate limit
+
     print(f"\n{'='*50}")
     print(f"TOTAL: {total} tweets upserted")
     for h, r in results.items():
-        print(f"  @{h}: {r}")
+        print(f"  @{h}: {r}" if not h.startswith("search:") else f"  {h}: {r}")
 
 
 if __name__ == "__main__":

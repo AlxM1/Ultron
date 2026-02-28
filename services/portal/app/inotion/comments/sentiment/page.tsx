@@ -3,11 +3,55 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid,
+  ResponsiveContainer, CartesianGrid, BarChart, Bar,
 } from "recharts";
-import { Search, Loader2, TrendingUp, TrendingDown, Minus, MessageSquare, Users, Calendar, ThumbsUp, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Loader2, TrendingUp, TrendingDown, Minus, MessageSquare, Users, Calendar, ThumbsUp, ChevronUp, ChevronDown, Youtube } from "lucide-react";
+
+/* ── Platform Icons ────────────────────────────────────── */
+
+function PlatformIcon({ platform, size = 14 }: { platform: string; size?: number }) {
+  if (platform === "youtube") {
+    return <Youtube style={{ width: size, height: size }} className="text-red-500" />;
+  }
+  if (platform === "reddit") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="text-orange-500">
+        <circle cx="12" cy="12" r="11" fill="currentColor" />
+        <text x="12" y="16.5" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="sans-serif">R</text>
+      </svg>
+    );
+  }
+  if (platform === "x") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="11" className="fill-zinc-800 dark:fill-zinc-200" />
+        <text x="12" y="16.5" textAnchor="middle" className="fill-zinc-100 dark:fill-zinc-900" fontSize="14" fontWeight="bold" fontFamily="sans-serif">&#x1D54F;</text>
+      </svg>
+    );
+  }
+  return null;
+}
+
+function PlatformBadge({ platform }: { platform: string }) {
+  const config: Record<string, { bg: string; text: string; label: string }> = {
+    youtube: { bg: "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20", text: "text-red-700 dark:text-red-400", label: "YouTube" },
+    reddit: { bg: "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20", text: "text-orange-700 dark:text-orange-400", label: "Reddit" },
+    x: { bg: "bg-zinc-100 dark:bg-zinc-700/30 border-zinc-300 dark:border-zinc-600/30", text: "text-zinc-700 dark:text-zinc-300", label: "X" },
+  };
+  const c = config[platform] || config.youtube;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${c.bg} ${c.text}`}>
+      <PlatformIcon platform={platform} size={10} />
+      {c.label}
+    </span>
+  );
+}
 
 /* ── Types ─────────────────────────────────────────────── */
+
+interface PlatformBreakdown {
+  [key: string]: { positive: number; negative: number; neutral: number; total: number };
+}
 
 interface SentimentData {
   keyword: string;
@@ -18,8 +62,9 @@ interface SentimentData {
     negative: { count: number; percentage: number; top_themes: string[] };
     neutral: { count: number; percentage: number };
   };
+  platform_breakdown?: PlatformBreakdown;
   timeline: { month: string; positive: number; negative: number; neutral: number }[];
-  top_comments: { text: string; sentiment: string; likes: number; date: string; creator: string; author: string }[];
+  top_comments: { text: string; sentiment: string; likes: number; date: string; creator: string; author: string; platform?: string }[];
   creators_breakdown: { creator: string; positive: number; negative: number; neutral: number }[];
 }
 
@@ -27,11 +72,7 @@ interface SentimentData {
 
 const SUGGESTED = ["AI", "OpenAI", "ChatGPT", "startup", "automation", "crypto", "scam", "money", "future", "agent"];
 const COLORS = { positive: "#22c55e", negative: "#ef4444", neutral: "#52525b" };
-const GRADIENT_COLORS = {
-  positive: { start: "#22c55e", end: "#16a34a" },
-  negative: { start: "#ef4444", end: "#dc2626" },
-  neutral: { start: "#71717a", end: "#52525b" },
-};
+const PLATFORM_COLORS: Record<string, string> = { youtube: "#ef4444", reddit: "#f97316", x: "#71717a" };
 
 /* ── Helpers ───────────────────────────────────────────── */
 
@@ -149,6 +190,7 @@ export default function SentimentPage() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SentimentData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const doSearch = useCallback(async (kw?: string) => {
@@ -157,6 +199,7 @@ export default function SentimentPage() {
     if (kw) setKeyword(kw);
     setLoading(true);
     setError(null);
+    setPlatformFilter(null);
     try {
       const res = await fetch(
         `/api/comments/sentiment?keyword=${encodeURIComponent(q)}&from=${from}&to=${to}&limit=2000`
@@ -174,12 +217,26 @@ export default function SentimentPage() {
     }
   }, [keyword, from, to]);
 
+  const filteredComments = data?.top_comments?.filter(c => !platformFilter || c.platform === platformFilter) || [];
+
   const pieData = data
     ? [
         { name: "Positive", value: data.sentiment.positive.count, color: COLORS.positive },
         { name: "Negative", value: data.sentiment.negative.count, color: COLORS.negative },
         { name: "Neutral", value: data.sentiment.neutral.count, color: COLORS.neutral },
       ]
+    : [];
+
+  const platformBarData = data?.platform_breakdown
+    ? Object.entries(data.platform_breakdown)
+        .filter(([_, v]) => v.total > 0)
+        .map(([platform, v]) => ({
+          platform: platform === "x" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1),
+          positive: v.positive,
+          negative: v.negative,
+          neutral: v.neutral,
+          total: v.total,
+        }))
     : [];
 
   const sentimentLabel = data
@@ -200,7 +257,7 @@ export default function SentimentPage() {
           Sentiment Intelligence
         </h1>
         <p className="text-zinc-500 dark:text-zinc-500 text-sm sm:text-base max-w-2xl">
-          Search any keyword across 700K+ comments to understand audience perception, track sentiment shifts over time, and identify opportunities.
+          Search any keyword across YouTube comments, Reddit posts, and X to understand audience perception across platforms.
         </p>
       </section>
 
@@ -214,7 +271,7 @@ export default function SentimentPage() {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && doSearch()}
-                placeholder="Search any keyword across all comments..."
+                placeholder="Search across YouTube, Reddit, and X..."
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all"
               />
             </div>
@@ -269,7 +326,7 @@ export default function SentimentPage() {
             <div className="w-16 h-16 rounded-full border-2 border-zinc-200 dark:border-zinc-800" />
             <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-transparent border-t-amber-500 animate-spin" />
           </div>
-          <p className="text-zinc-500 text-sm mt-6 animate-pulse">Analyzing {keyword ? `"${keyword}"` : ""}...</p>
+          <p className="text-zinc-500 text-sm mt-6 animate-pulse">Analyzing {keyword ? `"${keyword}"` : ""} across all platforms...</p>
         </div>
       )}
 
@@ -301,7 +358,7 @@ export default function SentimentPage() {
                 </span>
               </div>
               <p className="text-sm text-zinc-500">
-                {data.total_matches.toLocaleString()} comments analyzed from {data.date_range.from} to {data.date_range.to}
+                {data.total_matches.toLocaleString()} results analyzed from {data.date_range.from} to {data.date_range.to}
               </p>
             </div>
           </div>
@@ -437,6 +494,50 @@ export default function SentimentPage() {
             </div>
           </div>
 
+          {/* ── Platform Breakdown ────────────────────── */}
+          {platformBarData.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-6 shadow-sm dark:shadow-none">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-6">Platform Breakdown</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Bar chart */}
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={platformBarData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" vertical={false} />
+                    <XAxis dataKey="platform" className="[&_text]:fill-zinc-400 dark:[&_text]:fill-zinc-500" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis className="[&_text]:fill-zinc-400 dark:[&_text]:fill-zinc-500" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="positive" fill={COLORS.positive} radius={[4, 4, 0, 0]} stackId="a" />
+                    <Bar dataKey="neutral" fill={COLORS.neutral} radius={[0, 0, 0, 0]} stackId="a" />
+                    <Bar dataKey="negative" fill={COLORS.negative} radius={[0, 0, 4, 4]} stackId="a" />
+                  </BarChart>
+                </ResponsiveContainer>
+                {/* Platform cards */}
+                <div className="space-y-3">
+                  {platformBarData.map((p) => {
+                    const key = p.platform.toLowerCase();
+                    return (
+                      <div key={key} className="flex items-center gap-4 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-800/20">
+                        <PlatformIcon platform={key} size={20} />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{p.platform}</span>
+                            <span className="text-xs text-zinc-400 dark:text-zinc-500 tabular-nums">{p.total.toLocaleString()} total</span>
+                          </div>
+                          <SentimentBar positive={p.positive} negative={p.negative} neutral={p.neutral} />
+                          <div className="flex gap-4 mt-1 text-[10px] tabular-nums">
+                            <span className="text-green-600 dark:text-green-400">{p.positive} pos</span>
+                            <span className="text-red-600 dark:text-red-400">{p.negative} neg</span>
+                            <span className="text-zinc-400 dark:text-zinc-500">{p.neutral} neu</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Themes ────────────────────────────────── */}
           {(data.sentiment.positive.top_themes?.length > 0 || data.sentiment.negative.top_themes?.length > 0) && (
             <div className="bg-white dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-6 shadow-sm dark:shadow-none">
@@ -502,14 +603,45 @@ export default function SentimentPage() {
           {/* ── Top Comments ──────────────────────────── */}
           {data.top_comments?.length > 0 && (
             <div className="bg-white dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-6 shadow-sm dark:shadow-none">
-              <div className="flex items-center gap-2 mb-5">
-                <MessageSquare className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Highest Engagement Comments
-                </h3>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Highest Engagement
+                  </h3>
+                </div>
+                {/* Platform filter buttons */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPlatformFilter(null)}
+                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+                      !platformFilter
+                        ? "bg-amber-50 dark:bg-amber-500/15 border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-400"
+                        : "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700/30 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
+                    }`}
+                  >
+                    All
+                  </button>
+                  {(["youtube", "reddit", "x"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPlatformFilter(platformFilter === p ? null : p)}
+                      className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+                        platformFilter === p
+                          ? p === "youtube" ? "bg-red-50 dark:bg-red-500/15 border-red-300 dark:border-red-500/30 text-red-700 dark:text-red-400"
+                            : p === "reddit" ? "bg-orange-50 dark:bg-orange-500/15 border-orange-300 dark:border-orange-500/30 text-orange-700 dark:text-orange-400"
+                            : "bg-zinc-200 dark:bg-zinc-700/40 border-zinc-400 dark:border-zinc-500/30 text-zinc-700 dark:text-zinc-300"
+                          : "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700/30 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
+                      }`}
+                    >
+                      <PlatformIcon platform={p} size={10} />
+                      {p === "x" ? "X" : p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
-                {data.top_comments.map((c, i) => (
+                {filteredComments.map((c, i) => (
                   <div
                     key={i}
                     className={`relative pl-4 py-4 pr-5 rounded-xl border transition-all duration-200 hover:translate-x-0.5 hover:shadow-md dark:hover:shadow-none ${
@@ -530,7 +662,8 @@ export default function SentimentPage() {
                       }`}
                     />
                     <p className="text-[13px] text-zinc-700 dark:text-zinc-200 leading-relaxed mb-3 ml-2">{c.text}</p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 ml-2 text-[11px]">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ml-2 text-[11px]">
+                      <PlatformBadge platform={c.platform || "youtube"} />
                       <span className="font-medium text-zinc-800 dark:text-zinc-300">{c.creator}</span>
                       <span className="text-zinc-400 dark:text-zinc-600">@{c.author}</span>
                       <span className="text-zinc-400 dark:text-zinc-600">{c.date}</span>
@@ -541,6 +674,9 @@ export default function SentimentPage() {
                     </div>
                   </div>
                 ))}
+                {filteredComments.length === 0 && (
+                  <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm">No results for this platform filter</div>
+                )}
               </div>
             </div>
           )}
@@ -554,7 +690,7 @@ export default function SentimentPage() {
             <Search className="w-7 h-7 text-zinc-400 dark:text-zinc-700" />
           </div>
           <p className="text-zinc-500 text-sm mb-1">Enter a keyword to begin analysis</p>
-          <p className="text-zinc-400 dark:text-zinc-600 text-xs">Search across 700K+ comments from {new Date().getFullYear() - 14} years of creator content</p>
+          <p className="text-zinc-400 dark:text-zinc-600 text-xs">Search across YouTube, Reddit, and X</p>
         </div>
       )}
     </div>

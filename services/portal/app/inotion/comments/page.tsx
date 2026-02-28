@@ -4,8 +4,48 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, MessageSquare, TrendingUp, TrendingDown, HelpCircle, Flame,
-  AlertTriangle, Loader2, Search, X, Tag,
+  AlertTriangle, Loader2, Search, X, Tag, Youtube,
 } from "lucide-react";
+
+/* ── Platform Icons ────────────────────────────────────── */
+
+function PlatformIcon({ platform, size = 14 }: { platform: string; size?: number }) {
+  if (platform === "youtube") {
+    return <Youtube style={{ width: size, height: size }} className="text-red-500" />;
+  }
+  if (platform === "reddit") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="text-orange-500">
+        <circle cx="12" cy="12" r="11" fill="currentColor" />
+        <text x="12" y="16.5" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="sans-serif">R</text>
+      </svg>
+    );
+  }
+  if (platform === "x") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="11" className="fill-zinc-800 dark:fill-zinc-200" />
+        <text x="12" y="16.5" textAnchor="middle" className="fill-zinc-100 dark:fill-zinc-900" fontSize="14" fontWeight="bold" fontFamily="sans-serif">&#x1D54F;</text>
+      </svg>
+    );
+  }
+  return null;
+}
+
+function PlatformBadge({ platform }: { platform: string }) {
+  const config: Record<string, { bg: string; text: string; label: string }> = {
+    youtube: { bg: "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20", text: "text-red-700 dark:text-red-400", label: "YouTube" },
+    reddit: { bg: "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20", text: "text-orange-700 dark:text-orange-400", label: "Reddit" },
+    x: { bg: "bg-zinc-100 dark:bg-zinc-700/30 border-zinc-300 dark:border-zinc-600/30", text: "text-zinc-700 dark:text-zinc-300", label: "X" },
+  };
+  const c = config[platform] || config.youtube;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${c.bg} ${c.text}`}>
+      <PlatformIcon platform={platform} size={10} />
+      {c.label}
+    </span>
+  );
+}
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Treemap,
@@ -723,6 +763,11 @@ export default function CommentsPage() {
             </Link>
             <span className="text-zinc-300 dark:text-zinc-700">/</span>
             <h1 className="text-sm font-semibold text-amber-600 dark:text-amber-500">Comment Intelligence</h1>
+            <div className="flex items-center gap-1.5 ml-3">
+              <PlatformIcon platform="youtube" size={12} />
+              <PlatformIcon platform="reddit" size={12} />
+              <PlatformIcon platform="x" size={12} />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/inotion/comments/opportunities" className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors border border-zinc-200 dark:border-zinc-700">

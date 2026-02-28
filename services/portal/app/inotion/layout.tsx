@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Calendar, BookOpen, DollarSign, Map,
   UserCircle, Server,
-  MessageSquare, Menu, X, TrendingUp,
+  MessageSquare, Menu, X, TrendingUp, Workflow,
 } from "lucide-react";
 import { ThemeProvider, useTheme } from "../components/inotion/ThemeProvider";
 import ThemeToggle from "../components/inotion/ThemeToggle";
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/inotion/comments", label: "Comments", icon: MessageSquare },
   { href: "/inotion/comments/sentiment", label: "Sentiment", icon: TrendingUp },
 
+  { href: "/inotion/workflows", label: "Workflows", icon: Workflow },
   { href: "/inotion/infrastructure", label: "Infrastructure", icon: Server },
   { href: "/inotion/personas", label: "Personas", icon: UserCircle },
 ];

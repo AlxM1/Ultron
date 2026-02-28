@@ -48,11 +48,14 @@ export async function GET(request: Request) {
       );
     }
 
-    // Aggregate metrics
-    const totalDocuments = collections.reduce(
-      (sum: number, c: OutlineCollection) => sum + (c.documentCount ?? 0),
-      0
-    );
+    // Aggregate metrics — use pagination total from documents.list since
+    // Outline's collections.list doesn't always include documentCount
+    const totalDocuments =
+      docsRes?.pagination?.total ??
+      collections.reduce(
+        (sum: number, c: OutlineCollection) => sum + (c.documentCount ?? 0),
+        0
+      );
 
     const lastUpdatedDoc = recentDocs[0];
     const lastUpdated = lastUpdatedDoc?.updatedAt ?? null;

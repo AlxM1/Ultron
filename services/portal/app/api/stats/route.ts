@@ -72,40 +72,17 @@ export async function GET() {
     totalServices: 19,
   };
 
-  // Run content-intel stats and health checks concurrently
-  const [contentData, healthyCount] = await Promise.all([
-    (async () => {
-      try {
-        const data = await tryFetch(`${CONTENT_INTEL_URL}/api/stats`, {
-          "X-API-Key": API_KEY,
-        });
-        if (data) return data;
-
-        const [creators, transcripts, content] = await Promise.all([
-          tryFetch(`${CONTENT_INTEL_URL}/api/creators?limit=1`, { "X-API-Key": API_KEY }),
-          tryFetch(`${CONTENT_INTEL_URL}/api/transcripts?limit=1`, { "X-API-Key": API_KEY }),
-          tryFetch(`${CONTENT_INTEL_URL}/api/content?limit=1`, { "X-API-Key": API_KEY }),
-        ]);
-        return { creators, transcripts, content, _fallback: true };
-      } catch {
-        return null;
-      }
-    })(),
+  // Query content-intel individual endpoints (no /api/stats exists) and health concurrently
+  const [creatorsRes, transcriptsRes, contentRes, healthyCount] = await Promise.all([
+    tryFetch(`${CONTENT_INTEL_URL}/api/creators?limit=1`, { "X-API-Key": API_KEY }),
+    tryFetch(`${CONTENT_INTEL_URL}/api/transcripts?limit=1`, { "X-API-Key": API_KEY }),
+    tryFetch(`${CONTENT_INTEL_URL}/api/content?limit=1`, { "X-API-Key": API_KEY }),
     countHealthyServices(),
   ]);
 
-  if (contentData) {
-    if (contentData._fallback) {
-      if (contentData.creators) stats.totalCreators = contentData.creators.total ?? contentData.creators.count ?? (Array.isArray(contentData.creators) ? contentData.creators.length : 0);
-      if (contentData.transcripts) stats.totalTranscripts = contentData.transcripts.total ?? contentData.transcripts.count ?? (Array.isArray(contentData.transcripts) ? contentData.transcripts.length : 0);
-      if (contentData.content) stats.totalContent = contentData.content.total ?? contentData.content.count ?? (Array.isArray(contentData.content) ? contentData.content.length : 0);
-    } else {
-      stats.totalCreators = contentData.total_creators ?? contentData.creators ?? 0;
-      stats.totalTranscripts = contentData.total_transcripts ?? contentData.transcripts ?? 0;
-      stats.totalContent = contentData.total_content ?? contentData.content_items ?? 0;
-      stats.todayCost = contentData.today_cost ?? 0;
-    }
-  }
+  if (creatorsRes) stats.totalCreators = creatorsRes.total ?? 0;
+  if (transcriptsRes) stats.totalTranscripts = transcriptsRes.total ?? 0;
+  if (contentRes) stats.totalContent = contentRes.total ?? 0;
 
   stats.healthyServices = healthyCount;
 
